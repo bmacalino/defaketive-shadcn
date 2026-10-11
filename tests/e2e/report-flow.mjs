@@ -29,6 +29,8 @@ const review = (i, label, tag) => ({
 	content: tag ? `${TEXT[tag]} (${i})` : label === 'negative' ? `Not happy with this one, number ${i}.` : `Great, charges fast, number ${i}.`,
 	sentiment_analysis: { label, review_tags: tag ? [tag] : [], sentences: tag ? [{ text_raw: `${TEXT[tag]} (${i})`, tags: [tag], terms: [{ span: SPAN[tag], ngram: WORD[tag], category: tag }] }] : [] }
 });
+// A safety review that reports a fault too, with the tags in the order the server sends them.
+const both = (r) => ({ ...r, sentiment_analysis: { ...r.sentiment_analysis, review_tags: ['defect', 'safety'] } });
 const badge = (category, mentions) => ({
 	...LABELS.find((l) => l.category === category), mentions, reviews_analyzed: 40, phrase: 'x',
 	summary: mentions ? `${mentions} review${mentions === 1 ? ' reports' : 's report'} this` : 'No reviews report this', more_evidence: 0,
@@ -51,8 +53,8 @@ const fake = [
 	mk(6, 'Few', 'insufficient_evidence', 'unknown', 'Not enough reviews to judge', {}, [review(1, 'positive')]),
 	mk(7, 'Empty', 'not_analyzed', 'unknown', '', {}, []),
 	mk(8, 'Few with a complaint', 'insufficient_evidence', 'unknown', 'Not enough reviews to judge', { defect: 1 }, [review(1, 'negative', 'defect'), review(2, 'positive')]),
-	// The safety review is stored last, and the name is as long as marketplaces write them.
-	mk(9, 'Buried 20000mAh fast charging with LED display and built-in cables, model PB-2026, black, original', 'possible_safety_issue', 'moderate', 'Some reviewers mention safety concerns', { safety: 1, defect: 1 }, [review(1, 'positive'), review(2, 'negative'), review(3, 'negative', 'defect'), review(4, 'negative', 'safety')])
+	// The safety review is stored last and also reports a fault; the name is as long as marketplaces write them.
+	mk(9, 'Buried 20000mAh fast charging with LED display and built-in cables, model PB-2026, black, original', 'possible_safety_issue', 'moderate', 'Some reviewers mention safety concerns', { safety: 1, defect: 2 }, [review(1, 'positive'), review(2, 'negative'), review(3, 'negative', 'defect'), both(review(4, 'negative', 'safety'))])
 ];
 const card = ({ comments, ...rest }) => rest;
 const cards = fake.map(card);
@@ -201,6 +203,8 @@ async function axe(page, label) {
 	await settle(page, 900);
 	const listed = async () => (await page.locator('[role="tabpanel"][data-state="active"] #report-evidence article').allInnerTexts()).map((t) => (t.includes('burn wire') ? 'safety' : t.includes('stopped working') ? 'defect' : 'none'));
 	check((await listed()).join(' | ') === 'safety | defect', `flagged reviews: the safety report is first (${(await listed()).join(' | ')})`);
+	const tags = (await page.locator('[role="tabpanel"][data-state="active"] #report-evidence article').first().locator('[data-slot="badge"]').allInnerTexts()).map((t) => t.trim());
+	check(tags.includes('Faulty or broken') && tags.indexOf('Safety problem') >= 0 && tags.indexOf('Safety problem') < tags.indexOf('Faulty or broken'), `a review with two tags shows the more serious one first (${tags.join(' | ')})`);
 	await page.getByRole('group', { name: 'Filter reviews' }).getByRole('radio', { name: /^All/ }).click();
 	await settle(page, 600);
 	check((await listed()).join(' | ') === 'safety | defect | none | none', `all reviews: reported problems first (${(await listed()).join(' | ')})`);

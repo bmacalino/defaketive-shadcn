@@ -9,7 +9,7 @@
 	import { InputGroup, InputGroupAddon, InputGroupInput } from '#lib/components/ui/input-group/index.js';
 	import { Sheet, SheetContent, SheetDescription, SheetFooter, SheetHeader, SheetTitle } from '#lib/components/ui/sheet/index.js';
 	import { ToggleGroup, ToggleGroupItem } from '#lib/components/ui/toggle-group/index.js';
-	import { highlightReview, matchedWords, reviewTags, sentimentLabel, seriousness, type EvidenceFilter } from '#lib/product.js';
+	import { categoryPlace, highlightReview, matchedWords, reviewTags, sentimentLabel, seriousness, type EvidenceFilter } from '#lib/product.js';
 	import type { Review } from '#lib/types.js';
 
 	let {
@@ -141,7 +141,7 @@
 	</CardHeader>
 	<CardContent class="grid gap-3">
 		{#each visible as review, index (index)}
-			{@const reported = reviewTags(review).map((t) => ({ category: t, label: labelNames[t] })).filter((t) => t.label)}
+			{@const reported = reviewTags(review).map((t) => ({ category: t, label: labelNames[t] })).filter((t) => t.label).sort((a, b) => categoryPlace(a.category) - categoryPlace(b.category))}
 			{@const matched = [...matchedWords(review).keys()].slice(0, 4)}
 			{@const sentiment = sentimentLabel(review)}
 			<article class="reveal grid gap-2 rounded-lg border p-4" style="--i:{index % 6}">
