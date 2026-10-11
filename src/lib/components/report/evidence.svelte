@@ -9,7 +9,7 @@
 	import { InputGroup, InputGroupAddon, InputGroupInput } from '#lib/components/ui/input-group/index.js';
 	import { Sheet, SheetContent, SheetDescription, SheetFooter, SheetHeader, SheetTitle } from '#lib/components/ui/sheet/index.js';
 	import { ToggleGroup, ToggleGroupItem } from '#lib/components/ui/toggle-group/index.js';
-	import { highlightReview, matchedWords, reviewTags, sentimentLabel, type EvidenceFilter } from '#lib/product.js';
+	import { highlightReview, matchedWords, reviewTags, sentimentLabel, seriousness, type EvidenceFilter } from '#lib/product.js';
 	import type { Review } from '#lib/types.js';
 
 	let {
@@ -48,16 +48,21 @@
 	});
 
 	const filtered = $derived(
-		reviews.filter((review) => {
-			const tags = reviewTags(review);
-			const matchesType =
-				filter === 'all' || (filter === 'reported' ? tags.length > 0 : sentimentLabel(review) === filter);
-			const matchesTag = !tag || tags.includes(tag);
-			const matchesWord = !word || matchedWords(review).has(word);
-			const needle = query.trim().toLowerCase();
-			return matchesType && matchesTag && matchesWord && (!needle || String(review.content ?? '').toLowerCase().includes(needle));
-		})
+		reviews
+			.filter((review) => {
+				const tags = reviewTags(review);
+				const matchesType =
+					filter === 'all' || (filter === 'reported' ? tags.length > 0 : sentimentLabel(review) === filter);
+				const matchesTag = !tag || tags.includes(tag);
+				const matchesWord = !word || matchedWords(review).has(word);
+				const needle = query.trim().toLowerCase();
+				return matchesType && matchesTag && matchesWord && (!needle || String(review.content ?? '').toLowerCase().includes(needle));
+			})
+			// Most serious first, so one safety report is not buried under seventy other reviews. Ties keep their order.
+			.sort((a, b) => seriousness(a) - seriousness(b))
 	);
+	// Worth saying only when the list really was reordered: more than one review, and at least one reports a problem.
+	const ranked = $derived(filtered.length > 1 && reviewTags(filtered[0]).length > 0);
 	const visible = $derived(filtered.slice(0, limit));
 	const narrowed = $derived(
 		[tag ? `“${labelNames[tag] ?? tag}”` : '', word ? `“${word}”` : ''].filter(Boolean).join(', ')
@@ -115,7 +120,7 @@
 			<div>
 				<p class="text-muted-foreground text-xs font-medium tracking-wide uppercase">Review evidence</p>
 				<p class="text-muted-foreground text-sm" aria-live="polite">
-					Showing {visible.length} of {filtered.length} matching review{filtered.length === 1 ? '' : 's'}{narrowed ? ` for ${narrowed}` : ''}.
+					Showing {visible.length} of {filtered.length} matching review{filtered.length === 1 ? '' : 's'}{narrowed ? ` for ${narrowed}` : ''}{ranked ? ', most serious first' : ''}.
 				</p>
 			</div>
 			<InputGroup class="w-full sm:w-64">

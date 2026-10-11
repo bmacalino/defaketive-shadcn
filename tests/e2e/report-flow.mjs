@@ -50,7 +50,9 @@ const fake = [
 	mk(5, 'Spotless', 'no_warning_signs', 'low', 'No warning signs found', {}, [review(1, 'positive'), review(2, 'positive'), review(3, 'positive')]),
 	mk(6, 'Few', 'insufficient_evidence', 'unknown', 'Not enough reviews to judge', {}, [review(1, 'positive')]),
 	mk(7, 'Empty', 'not_analyzed', 'unknown', '', {}, []),
-	mk(8, 'Few with a complaint', 'insufficient_evidence', 'unknown', 'Not enough reviews to judge', { defect: 1 }, [review(1, 'negative', 'defect'), review(2, 'positive')])
+	mk(8, 'Few with a complaint', 'insufficient_evidence', 'unknown', 'Not enough reviews to judge', { defect: 1 }, [review(1, 'negative', 'defect'), review(2, 'positive')]),
+	// The safety review is stored last, and the name is as long as marketplaces write them.
+	mk(9, 'Buried 20000mAh fast charging with LED display and built-in cables, model PB-2026, black, original', 'possible_safety_issue', 'moderate', 'Some reviewers mention safety concerns', { safety: 1, defect: 1 }, [review(1, 'positive'), review(2, 'negative'), review(3, 'negative', 'defect'), review(4, 'negative', 'safety')])
 ];
 const card = ({ comments, ...rest }) => rest;
 const cards = fake.map(card);
@@ -94,8 +96,37 @@ async function axe(page, label) {
 {
 	const { context, page, errors } = await open();
 
-	// ---- The order of the first tab ----
+	// ---- The order of the top of the report: name, verdict, next step, then the numbers ----
 	await go(page, 1);
+	const top = await page.evaluate(() => {
+		const after = (a, b) => Boolean(a && b) && Boolean(a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING);
+		const text = (el) => el?.textContent.replace(/\s+/g, ' ').trim() ?? '';
+		const name = document.querySelector('h1');
+		const box = document.querySelector('[aria-label="Verdict"]');
+		const next = document.querySelector('[aria-label="What to do next"]');
+		const numbers = [...document.querySelectorAll('dl')].find((dl) => dl.textContent.includes('Report date'));
+		const sample = [...document.querySelectorAll('p')].find((p) => /^We read /.test(p.textContent.trim()));
+		const card = name?.closest('[data-slot="card"]');
+		return {
+			order: after(name, box) && after(box, next) && after(next, numbers) && after(next, sample),
+			oneCard: Boolean(card) && [box, next, numbers, sample].every((el) => el?.closest('[data-slot="card"]') === card),
+			beside: text(name?.parentElement),
+			terms: [...(numbers?.querySelectorAll('dt') ?? [])].map(text)
+		};
+	});
+	check(top.order && top.oneCard, 'the verdict comes right after the name; the next step and then the numbers follow, in one card');
+	check(top.beside.includes('4.2/5') && top.beside.includes('Shopee PH · ₱499.00') && !top.beside.includes('out of 5'), `beside the name: the rating once, the marketplace and the price (${top.beside.slice(-40)})`);
+	check(top.terms.join(' | ') === 'Positive reviews | Negative reviews | Category | Report date', `under the verdict: ${top.terms.join(' | ')}`);
+
+	// ---- The kinds of problem, most serious first, in two groups ----
+	const groups = await page.evaluate(() => [...document.querySelectorAll('#report-findings section')].map((section) => ({
+		title: section.querySelector('h3')?.textContent.trim(),
+		labels: [...section.querySelectorAll('.reveal > div:first-child > span.font-medium')].map((el) => el.textContent.trim())
+	})));
+	check(groups.length === 2 && groups[0].title === 'Can change the verdict' && groups[0].labels.join(' | ') === 'Safety problem | Faulty or broken | Possible fake', `first the three that can change the verdict (${groups[0]?.labels.join(' | ')})`);
+	check(groups[1]?.title === "Doesn't change the verdict" && groups[1].labels.join(' | ') === 'Poor quality | Not as advertised', `then the two that can't, under their own heading (${groups[1]?.labels.join(' | ')})`);
+
+	// ---- The order of the first tab ----
 	const titles = (await page.locator('[role="tabpanel"][data-state="active"] [data-slot="card-title"]').allInnerTexts()).map((t) => t.trim());
 	check(titles[0] === 'Each check, in their own words', `first card under the verdict is the reviewers' quotes (${titles[0]})`);
 	check(titles.indexOf('Review sentiment') === 1 && titles.at(-1) === 'How DeFaketive labels a product', 'then the numbers; the explanation of the labels is last');
@@ -164,6 +195,20 @@ async function axe(page, label) {
 	await settle(page, 900);
 	check((await checkedFilter(page)).startsWith('All') && (await page.getByText('Showing 3 of 3 matching reviews').isVisible()), 'it opens every review');
 
+	// ---- The list of reviews: most serious first, whatever order they were stored in ----
+	await go(page, 9);
+	await page.getByRole('tab', { name: /Reviews/ }).click();
+	await settle(page, 900);
+	const listed = async () => (await page.locator('[role="tabpanel"][data-state="active"] #report-evidence article').allInnerTexts()).map((t) => (t.includes('burn wire') ? 'safety' : t.includes('stopped working') ? 'defect' : 'none'));
+	check((await listed()).join(' | ') === 'safety | defect', `flagged reviews: the safety report is first (${(await listed()).join(' | ')})`);
+	await page.getByRole('group', { name: 'Filter reviews' }).getByRole('radio', { name: /^All/ }).click();
+	await settle(page, 600);
+	check((await listed()).join(' | ') === 'safety | defect | none | none', `all reviews: reported problems first (${(await listed()).join(' | ')})`);
+	check(await page.getByText('Showing 4 of 4 matching reviews, most serious first.').isVisible(), 'the list says it is sorted "most serious first"');
+	await page.getByRole('group', { name: 'Filter reviews' }).getByRole('radio', { name: /^Positive/ }).click();
+	await settle(page, 600);
+	check(await page.getByText('Showing 1 of 1 matching review.').isVisible(), 'a list with nothing to sort does not claim an order');
+
 	// ---- No verdict yet ----
 	await go(page, 6);
 	steps = await nextSteps(page);
@@ -204,6 +249,16 @@ async function axe(page, label) {
 	for (const i of [0, 2, 7]) {
 		await go(page, i);
 		check((await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth)) <= 1, `phone: report "${fake[i].name.replace(' power bank', '')}" does not scroll sideways`);
+	}
+	// On a phone the verdict must not need scrolling, even under a long product name.
+	for (const i of [0, 9]) {
+		await go(page, i);
+		const box = await page.evaluate(() => {
+			const r = document.querySelector('[aria-label="Verdict"]').getBoundingClientRect();
+			return { top: Math.round(r.top), bottom: Math.round(r.bottom), screen: innerHeight, sideways: document.documentElement.scrollWidth - innerWidth };
+		});
+		check(box.top > 0 && box.bottom <= box.screen && box.sideways <= 1, `phone: the whole verdict is on the first screen${i === 9 ? ', under a long name too' : ''} (${box.top} to ${box.bottom} of ${box.screen})`);
+		await page.screenshot({ path: `tests/e2e/shots/report_flow_phone_first_screen_${i}.png` });
 	}
 	await go(page, 0);
 	await page.screenshot({ path: 'tests/e2e/shots/report_flow_phone.png', fullPage: true });

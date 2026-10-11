@@ -14,7 +14,7 @@
 	import ScanProgress from '#lib/components/app/scan-progress.svelte';
 	import { RadioGroup, RadioGroupItem } from '#lib/components/ui/radio-group/index.js';
 	import { Spinner } from '#lib/components/ui/spinner/index.js';
-	import { LAZADA_REVIEWS_PER_STAR, linkIdentity, MARKETPLACES, queryContext } from '#lib/product.js';
+	import { LAZADA_REVIEWS_PER_STAR, linkIdentity, MARKETPLACES, queryContext, TYPICAL_SCAN_TIME } from '#lib/product.js';
 	import { catalog } from '#lib/stores/catalog.svelte.js';
 	import { library } from '#lib/stores/library.svelte.js';
 	import { scan } from '#lib/stores/scan.svelte.js';
@@ -100,6 +100,8 @@
 			? Math.min(100, Math.max(0, Number(scan.summary?.progress)))
 			: ({ 1: 18, 2: 68, 3: 92 } as Record<number, number>)[stage]
 	);
+	// One product from a link takes a known time. A search by name scans several products, so nothing is promised there.
+	const oneProduct = $derived(queryContext(scan.summary?.query ?? '').isUrl);
 	const stepper = ['Paste a link', 'We read the reviews', 'Read your report'];
 </script>
 
@@ -215,6 +217,7 @@
 						</div>
 						<p class="text-muted-foreground text-sm">{scan.summary?.message || 'Preparing…'}</p>
 						<ScanProgress {stage} {progress} />
+						{#if oneProduct}<p class="text-muted-foreground text-xs">A scan of one product usually takes {TYPICAL_SCAN_TIME}.</p>{/if}
 					</div>
 				{/if}
 

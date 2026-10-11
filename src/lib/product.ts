@@ -19,6 +19,9 @@ export const MARKETPLACES: Record<Marketplace, string> = {
 /** Lazada scans read this many written reviews from each star level (webapp.LAZADA_REVIEWS_PER_STAR). */
 export const LAZADA_REVIEWS_PER_STAR = 60;
 
+/** How long a live scan of one product takes. Timed on one real Lazada listing (11 Oct 2026): 195 seconds, link to report. */
+export const TYPICAL_SCAN_TIME = 'about 3 minutes';
+
 // --- The verdict ------------------------------------------------------------
 // A product without a view was checked by an older model. It is shown as "not
 // analyzed", never as clear: a missing result must not read as "no problems".
@@ -273,6 +276,17 @@ export const reviewTags = (review: Review): string[] => [
 	...(review?.sentiment_analysis?.review_tags ?? []),
 	...(review?.sentiment_analysis?.review_extra_tags ?? [])
 ];
+
+/** The kinds of problem, most serious first: the three that can change the verdict, then the two that can't. */
+export const CATEGORY_ORDER: Category[] = ['safety', 'defect', 'counterfeit', 'quality', 'not_as_described'];
+/** Where a kind of problem sits in that order. One this app does not know goes last. */
+export function categoryPlace(category: string): number {
+	const place = CATEGORY_ORDER.indexOf(category as Category);
+	return place < 0 ? CATEGORY_ORDER.length : place;
+}
+/** Where a review sorts in a list: by the most serious problem it reports. A review that reports nothing comes last. */
+export const seriousness = (review: Review): number =>
+	Math.min(CATEGORY_ORDER.length, ...reviewTags(review).map(categoryPlace));
 
 /** The words the check matched in a review: only words from a label the sentence was tagged with, never a negated one. */
 export function matchedWords(review: Review): Map<string, string> {

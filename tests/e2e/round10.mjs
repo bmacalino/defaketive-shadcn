@@ -65,7 +65,7 @@ check(pool.products.every((p) => p.updated_at || p.analysis_date || p.analyzed_a
 	check(/\(adjusted\)/.test(text) && !/weighted/i.test(text) && !/coverage\)/.test(text), 'no "weighted" and no "coverage" left; the percentages say "(adjusted)"');
 	check(text.includes('We read extra low-star reviews on purpose, so the percentages are adjusted to reflect the whole listing.'), 'the sentiment card explains the adjustment in plain words');
 	check(text.includes('Mixed or unclear reviews') && !/\bUncertain\b/.test(text), 'sentiment says "Mixed or unclear", not "Uncertain"');
-	check((await page.getByText("Doesn't change the verdict").count()) === 2 && !text.includes('Informs only'), 'the two extra labels say "Doesn\'t change the verdict"');
+	check((await page.getByText("Doesn't change the verdict").count()) === 1 && !text.includes('Informs only'), 'the two extra labels sit under one heading, "Doesn\'t change the verdict"');
 	const reportDate = await page.evaluate(() => [...document.querySelectorAll('dl > div')].find((el) => el.querySelector('dt')?.textContent.trim() === 'Report date')?.querySelector('dd')?.textContent.trim() ?? '');
 	check(/^[A-Z][a-z]{2} \d{1,2}, \d{4}$/.test(reportDate), `the report shows its date (${reportDate})`);
 	await page.screenshot({ path: 'tests/e2e/shots/round10_report.png' });

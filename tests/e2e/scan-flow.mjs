@@ -63,6 +63,7 @@ async function pretendScan(page, { limit = false } = {}) {
 	await go.click();
 	await page.getByText('Lazada PH live scan').waitFor({ timeout: 10000 });
 	check(true, 'a running scan shows its panel');
+	check(await page.getByText('A scan of one product usually takes about 3 minutes.').isVisible(), 'the running scan says how long it usually takes');
 	await page.screenshot({ path: `${out}/scan_running_analyze.png` });
 	check(await page.locator('#search-query').isDisabled(), 'the form is locked while a scan runs');
 	await page.waitForURL(/\/app\/report\?link=/, { timeout: 30000 });

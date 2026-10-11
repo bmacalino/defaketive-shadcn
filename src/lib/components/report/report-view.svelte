@@ -162,12 +162,13 @@
 	const saved = $derived(library.isSaved(listing));
 	const date = $derived(product ? reportDate(product) : null);
 
-	const meta = $derived([
-		['Platform', platformName(product)],
-		['Category', product?.category || 'Not specified'],
-		['Price', money(product?.price)],
+	// Beside the name and the stars: what a shopper recognises the listing by.
+	const identity = $derived([platformName(product), product?.price ? money(product.price) : ''].filter(Boolean).join(' · '));
+	// Under the verdict: the numbers behind the report.
+	const details = $derived([
 		['Positive reviews', weighted ? `${positive.percent.toFixed(0)}% (adjusted)` : `${positive.value} / ${uniqueCount}`],
 		['Negative reviews', weighted ? `${negative.percent.toFixed(0)}% (adjusted)` : `${negative.value} / ${uniqueCount}`],
+		['Category', product?.category || 'Not specified'],
 		['Report date', date ?? 'Unavailable']
 	]);
 
@@ -286,6 +287,8 @@
 	</p>
 </div>
 
+<!-- What an account adds. It sits under the verdict: the answer comes first, the offer after. -->
+{#snippet accountNote()}
 {#if guest && !auth.user}
 	<!-- The guest screen always says what an account adds. It never blocks the report. -->
 	<Alert>
@@ -311,6 +314,7 @@
 		</div>
 	</Alert>
 {/if}
+{/snippet}
 
 {#if loading}
 	<ReportSkeleton />
@@ -345,48 +349,42 @@
 	</EmptyState>
 {:else}
 	<Card class="gap-0 overflow-hidden py-0">
-		<div class="grid gap-6 p-5 md:grid-cols-[13rem_1fr] md:p-6">
-			{#if image}
-				<button
-					type="button"
-					class="group focus-visible:ring-ring/50 relative block aspect-square w-52 max-w-full overflow-hidden rounded-2xl outline-none focus-visible:ring-3"
-					aria-label="View a larger photo of {name}"
-					onclick={() => (photoOpen = true)}
-				>
-					<ProductImage src={image} {name} class="size-full" />
-					<span class="bg-background/90 absolute right-2 bottom-2 grid size-8 place-items-center rounded-md opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100" aria-hidden="true"><MaximizeIcon class="size-4" /></span>
-				</button>
-			{:else}
-				<ProductImage src="" {name} class="aspect-square w-52 max-w-full rounded-2xl" />
-			{/if}
-			<div class="grid content-start gap-3">
-				<div class="flex flex-wrap items-start justify-between gap-3">
-					<p class="text-muted-foreground text-xs font-medium tracking-wide uppercase">Product report</p>
-					<div class="flex flex-wrap gap-2">
-						<Button variant="outline" size="sm" aria-pressed={saved} disabled={!listing} onclick={save}>
-							<HeartIcon class={saved ? 'fill-current' : ''} /> {saved ? 'Saved' : 'Save'}
-						</Button>
-						{#if listing}
-							<Button variant="outline" size="sm" href={listing} target="_blank" rel="noreferrer">
-								{listingLabel(product)} <ExternalLinkIcon />
-							</Button>
-						{/if}
+		<div class="grid gap-4 p-5 md:p-6">
+			<!-- Which product this is, kept short: the verdict comes straight after, on the first screen of a phone too. -->
+			<div class="grid grid-cols-[4.5rem_1fr] items-start gap-x-4 gap-y-3 sm:grid-cols-[7rem_1fr] sm:gap-x-5">
+				{#if image}
+					<button
+						type="button"
+						class="group focus-visible:ring-ring/50 relative block aspect-square w-full overflow-hidden rounded-xl outline-none focus-visible:ring-3 sm:row-span-2"
+						aria-label="View a larger photo of {name}"
+						onclick={() => (photoOpen = true)}
+					>
+						<ProductImage src={image} {name} class="size-full" />
+						<span class="bg-background/90 absolute right-1 bottom-1 grid size-6 place-items-center rounded-md opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100" aria-hidden="true"><MaximizeIcon class="size-3.5" /></span>
+					</button>
+				{:else}
+					<ProductImage src="" {name} class="aspect-square w-full rounded-xl sm:row-span-2" />
+				{/if}
+				<div class="grid min-w-0 content-start gap-2">
+					<p class="text-muted-foreground hidden text-xs font-medium tracking-wide uppercase sm:block">Product report</p>
+					<h1 class="text-lg leading-snug font-semibold tracking-tight sm:text-xl">{name}</h1>
+					<div class="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm">
+						<Stars value={rating} />
+						<span class="text-muted-foreground">{identity}</span>
 					</div>
 				</div>
-				<h1 class="text-xl leading-snug font-semibold tracking-tight">{name}</h1>
-				<div class="flex flex-wrap items-center gap-2 text-sm">
-					<Stars value={rating} />
-					<span class="text-muted-foreground">{rating ? `${rating.toFixed(1)} out of 5 · ` : ''}{uniqueCount.toLocaleString()} reviews analyzed</span>
+				<!-- Under the photo on a phone, under the name on anything wider. -->
+				<div class="col-span-2 flex flex-wrap gap-2 sm:col-span-1 sm:col-start-2">
+					<Button variant="outline" size="sm" aria-pressed={saved} disabled={!listing} onclick={save}>
+						<HeartIcon class={saved ? 'fill-current' : ''} /> {saved ? 'Saved' : 'Save'}
+					</Button>
+					{#if listing}
+						<Button variant="outline" size="sm" href={listing} target="_blank" rel="noreferrer">
+							{listingLabel(product)} <ExternalLinkIcon />
+						</Button>
+					{/if}
 				</div>
-				<dl class="grid grid-cols-2 gap-x-6 gap-y-2 text-sm sm:grid-cols-3">
-					{#each meta as [term, value] (term)}
-						<div><dt class="text-muted-foreground text-xs">{term}</dt><dd class="font-medium">{value}</dd></div>
-					{/each}
-				</dl>
-				<p class="text-muted-foreground text-xs">{sampleNote}</p>
 			</div>
-		</div>
-		<div class="grid gap-4 border-t p-5 md:p-6">
 			<VerdictBlock {product} />
 			{#if lifted}
 				<!-- The verdict alone would not be orange: say why this product is. -->
@@ -431,7 +429,18 @@
 				<Button variant="link" size="sm" class="text-muted-foreground" onclick={showGuide}>What do these labels mean?</Button>
 			</div>
 		</div>
+		<!-- The numbers behind the report. Useful, but never ahead of the verdict. -->
+		<div class="grid gap-3 border-t p-5 md:p-6">
+			<dl class="grid grid-cols-2 gap-x-6 gap-y-3 text-sm sm:grid-cols-4">
+				{#each details as [term, value] (term)}
+					<div><dt class="text-muted-foreground text-xs">{term}</dt><dd class="font-medium">{value}</dd></div>
+				{/each}
+			</dl>
+			<p class="text-muted-foreground text-xs">{sampleNote}</p>
+		</div>
 	</Card>
+
+	{@render accountNote()}
 
 	<Tabs bind:value={tab} id="report-tabs" class="scroll-mt-20 gap-6">
 		<TabsList class="w-full sm:w-fit">

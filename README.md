@@ -117,6 +117,9 @@ product that was already checked and to show its report.
   A **scan** is the work a check starts when the product is new: it collects fresh reviews, it is what runs, and it is
   what is counted ("3 free scans"). What you get is a **report**. The app does not say "analyze" for what a person
   does. (The original app's own progress messages and its "Not analyzed yet" headline still do; they are shown as sent.)
+- **A running scan says how long it usually takes** ("about 3 minutes"), on the guest screen and on Check a product
+  when the scan is of one link. The number is `TYPICAL_SCAN_TIME` in `src/lib/product.ts`. It was timed on one real
+  Lazada listing (195 seconds); change it there if more scans show a different figure.
 - **Four groups, one name each**, used everywhere a group is named: chips on cards, filters, numbers, charts and the
   legend. The names live in one place, `GROUP_NAMES` in `src/lib/product.ts`. The sentence under a chip (the verdict
   headline, such as "No warning signs found") is the server's and says why.
@@ -148,19 +151,29 @@ product that was already checked and to show its report.
 
 One component draws it for the app and for the guest screen (`src/lib/components/report/report-view.svelte`).
 
-1. **The verdict**, biggest thing on the page. If a product is orange only because one review mentions a safety
+The order is: which product, the answer, what to do about it, then the proof.
+
+1. **Which product:** a small photo, the name, its stars, marketplace and price. Kept short on purpose, so that the
+   verdict is on the first screen of a phone even under a long name.
+2. **The verdict**, biggest thing on the page. If a product is orange only because one review mentions a safety
    concern, a one-line note right under the verdict says so.
-2. **One next step** under it, chosen by the verdict: read the flagged reviews (and see similar products with no
+3. **One next step** under it, chosen by the verdict: read the flagged reviews (and see similar products with no
    warnings, when there are any) for Caution and Safety reports; read the flagged, negative or all reviews for
    No warnings; read the flagged reviews, or the reviews we have, for No verdict yet. "What do these labels mean?"
    jumps to the legend.
-3. **First tab:** the reviewers' own words first ("What reviewers reported", one block per kind of problem), then the
-   sentiment and the short summary, and last the legend of the four groups.
-4. The tabs are **Summary**, **Reviews** (every review, with filters) and **Similar products** (the count shows only
-   when there are some).
+4. **The numbers behind it**, in the same card but below the verdict: positive and negative reviews, category, report
+   date and the sentence about how many reviews were read. On the guest screen, the note about what an account adds
+   comes after this card, never above the verdict.
+5. **First tab:** the reviewers' own words first ("What reviewers reported", one block per kind of problem), then the
+   sentiment and the short summary, and last the legend of the four groups. The kinds of problem are in two groups,
+   most serious first: "Can change the verdict" (Safety problem, Faulty or broken, Possible fake), then "Doesn't
+   change the verdict" (Poor quality, Not as advertised). The order lives in `CATEGORY_ORDER` in `src/lib/product.ts`.
+6. The tabs are **Summary**, **Reviews** (every review, with filters) and **Similar products** (the count shows only
+   when there are some). The list of reviews uses the same order, so a safety report is at the top and not under
+   seventy other reviews; the line above the list then says "most serious first".
 
-Small wording rules on a report: sentiment is "Positive", "Negative" or "Mixed or unclear"; a label that is counted
-but does not affect the verdict says "Doesn't change the verdict"; the button that leaves for the listing names where
+Small wording rules on a report: sentiment is "Positive", "Negative" or "Mixed or unclear"; the labels that are
+counted but do not affect the verdict sit under one heading, "Doesn't change the verdict"; the button that leaves for the listing names where
 it goes ("View on Lazada"); the line about the sample is a sentence ("We read 15 of this listing's 4,048 reviews.");
 and when extra low-star reviews were read on purpose, the percentages are called "adjusted", with one sentence saying
 why. The report date comes from when the report was last saved (`server.py` passes it along).

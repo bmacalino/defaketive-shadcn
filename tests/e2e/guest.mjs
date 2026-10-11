@@ -79,6 +79,12 @@ async function axe(page, label) {
 	await page.getByRole('heading', { level: 1 }).waitFor({ timeout: 15000 });
 	check((await inApp(page)) === 0, 'the report opens on the guest screen (no app menu)');
 	check(await page.getByText("You're viewing this as a guest").isVisible(), 'the guest report says what an account adds');
+	const noteAfterVerdict = await page.evaluate(() => {
+		const box = document.querySelector('[aria-label="Verdict"]');
+		const note = [...document.querySelectorAll('[data-slot="alert-title"]')].find((el) => el.textContent.includes("You're viewing this as a guest"));
+		return Boolean(box && note) && Boolean(box.compareDocumentPosition(note) & Node.DOCUMENT_POSITION_FOLLOWING);
+	});
+	check(noteAfterVerdict, 'the note about an account comes after the verdict, not before it');
 	await page.waitForTimeout(1200);
 	await page.screenshot({ path: 'tests/e2e/shots/guest_report.png' });
 	await axe(page, 'guest report');
@@ -107,6 +113,7 @@ async function axe(page, label) {
 	await page.getByRole('button', { name: /Check this Lazada PH product/ }).click();
 	await page.getByText('Lazada PH live scan').waitFor({ timeout: 10000 });
 	check((await inApp(page)) === 0 && page.url().endsWith('/scan'), 'the scan runs on the guest screen');
+	check(await page.getByText('A scan usually takes about 3 minutes.').isVisible(), 'the running scan says how long it usually takes');
 	await page.screenshot({ path: 'tests/e2e/shots/guest_running.png' });
 	await page.waitForURL(/\/scan\/report\?link=/, { timeout: 40000 });
 	await page.getByRole('heading', { level: 1, name: /Guest scanned this/ }).waitFor({ timeout: 15000 });
