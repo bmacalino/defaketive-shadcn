@@ -1,0 +1,9 @@
+# Keep the files exactly as they are on disk: Unix line endings everywhere,
+# except Windows command files, which need Windows line endings to run.
+* text=auto eol=lf
+*.cmd text eol=crlf
+*.bat text eol=crlf
+*.png binary
+*.jpg binary
+*.ico binary
+*.woff2 binary

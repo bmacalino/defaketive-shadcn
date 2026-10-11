@@ -1,0 +1,434 @@
+@import 'tailwindcss';
+@import "tw-animate-css";
+@import "shadcn-svelte/tailwind.css";
+@import "@fontsource-variable/inter";
+
+@custom-variant dark (&:is(.dark *));
+
+:root {
+	--background: oklch(1 0 0);
+	--foreground: oklch(0.145 0 0);
+	--card: oklch(1 0 0);
+	--card-foreground: oklch(0.145 0 0);
+	--popover: oklch(1 0 0);
+	--popover-foreground: oklch(0.145 0 0);
+	--primary: oklch(0.205 0 0);
+	--primary-foreground: oklch(0.985 0 0);
+	--secondary: oklch(0.97 0 0);
+	--secondary-foreground: oklch(0.205 0 0);
+	--muted: oklch(0.97 0 0);
+	/* shadcn's 0.556 reads 4.3:1 on `muted` (below AA). 0.5 reads 5.5:1 on muted and 6.3:1 on white. */
+	--muted-foreground: oklch(0.5 0 0);
+	--accent: oklch(0.97 0 0);
+	--accent-foreground: oklch(0.205 0 0);
+	--destructive: oklch(0.53 0.22 27);
+	--border: oklch(0.922 0 0);
+	--input: oklch(0.922 0 0);
+	--ring: oklch(0.708 0 0);
+	--chart-1: oklch(0.87 0 0);
+	--chart-2: oklch(0.556 0 0);
+	--chart-3: oklch(0.439 0 0);
+	--chart-4: oklch(0.371 0 0);
+	--chart-5: oklch(0.269 0 0);
+	--radius: 0.625rem;
+	--sidebar: oklch(0.985 0 0);
+	--sidebar-foreground: oklch(0.145 0 0);
+	--sidebar-primary: oklch(0.205 0 0);
+	--sidebar-primary-foreground: oklch(0.985 0 0);
+	--sidebar-accent: oklch(0.97 0 0);
+	--sidebar-accent-foreground: oklch(0.205 0 0);
+	--sidebar-border: oklch(0.922 0 0);
+	--sidebar-ring: oklch(0.708 0 0);
+	/* DeFaketive verdict colours. The same four mean the same thing everywhere (chips, banners, charts):
+	   red = safety reports, orange = caution, teal = no warnings, grey = not enough to judge.
+	   Checked with a script, not by eye (see README): every colour reads 3:1 or better on white and on its own tint,
+	   dark text on each tint reads 17:1, and the four stay clearly apart for protan, deutan and tritan colour blindness.
+	   "No warnings" is teal rather than bright green on purpose: it must never look like a stamp of approval.
+	   Text on a tint is always the normal foreground colour, so nothing is ever brown or hard to read. */
+	--warning: oklch(0.64 0.17 62);
+	--warning-soft: oklch(0.97 0.05 85);
+	--success: oklch(0.48 0.095 185);
+	--success-soft: oklch(0.965 0.03 185);
+	--unknown: oklch(0.63 0.005 260);
+	--unknown-soft: oklch(0.96 0.004 260);
+	--destructive-soft: oklch(0.965 0.02 20);
+	/* For red TEXT on a tint (the destructive button): `destructive` reads 5.2:1 there, this reads more. */
+	--destructive-ink: oklch(0.46 0.2 27);
+}
+
+.dark {
+	--background: oklch(0.145 0 0);
+	--foreground: oklch(0.985 0 0);
+	--card: oklch(0.205 0 0);
+	--card-foreground: oklch(0.985 0 0);
+	--popover: oklch(0.205 0 0);
+	--popover-foreground: oklch(0.985 0 0);
+	--primary: oklch(0.922 0 0);
+	--primary-foreground: oklch(0.205 0 0);
+	--secondary: oklch(0.269 0 0);
+	--secondary-foreground: oklch(0.985 0 0);
+	--muted: oklch(0.269 0 0);
+	--muted-foreground: oklch(0.708 0 0);
+	--accent: oklch(0.269 0 0);
+	--accent-foreground: oklch(0.985 0 0);
+	--destructive: oklch(0.66 0.21 22);
+	--border: oklch(1 0 0 / 10%);
+	--input: oklch(1 0 0 / 15%);
+	--ring: oklch(0.556 0 0);
+	--chart-1: oklch(0.87 0 0);
+	--chart-2: oklch(0.556 0 0);
+	--chart-3: oklch(0.439 0 0);
+	--chart-4: oklch(0.371 0 0);
+	--chart-5: oklch(0.269 0 0);
+	--sidebar: oklch(0.205 0 0);
+	--sidebar-foreground: oklch(0.985 0 0);
+	--sidebar-primary: oklch(0.488 0.243 264.376);
+	--sidebar-primary-foreground: oklch(0.985 0 0);
+	--sidebar-accent: oklch(0.269 0 0);
+	--sidebar-accent-foreground: oklch(0.985 0 0);
+	--sidebar-border: oklch(1 0 0 / 10%);
+	--sidebar-ring: oklch(0.556 0 0);
+	--warning: oklch(0.83 0.16 85);
+	--warning-soft: oklch(0.29 0.06 80);
+	--success: oklch(0.76 0.12 200);
+	--success-soft: oklch(0.28 0.05 200);
+	--unknown: oklch(0.64 0.02 260);
+	--unknown-soft: oklch(0.27 0.005 260);
+	--destructive-soft: oklch(0.28 0.06 22);
+	--destructive-ink: oklch(0.83 0.12 22);
+}
+
+@theme inline {
+	--font-sans: 'Inter Variable', sans-serif;
+	--color-warning: var(--warning);
+	--color-warning-soft: var(--warning-soft);
+	--color-success: var(--success);
+	--color-success-soft: var(--success-soft);
+	--color-unknown: var(--unknown);
+	--color-unknown-soft: var(--unknown-soft);
+	--color-destructive-ink: var(--destructive-ink);
+	--color-destructive-soft: var(--destructive-soft);
+	--color-sidebar-ring: var(--sidebar-ring);
+	--color-sidebar-border: var(--sidebar-border);
+	--color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+	--color-sidebar-accent: var(--sidebar-accent);
+	--color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+	--color-sidebar-primary: var(--sidebar-primary);
+	--color-sidebar-foreground: var(--sidebar-foreground);
+	--color-sidebar: var(--sidebar);
+	--color-chart-5: var(--chart-5);
+	--color-chart-4: var(--chart-4);
+	--color-chart-3: var(--chart-3);
+	--color-chart-2: var(--chart-2);
+	--color-chart-1: var(--chart-1);
+	--color-ring: var(--ring);
+	--color-input: var(--input);
+	--color-border: var(--border);
+	--color-destructive: var(--destructive);
+	--color-accent-foreground: var(--accent-foreground);
+	--color-accent: var(--accent);
+	--color-muted-foreground: var(--muted-foreground);
+	--color-muted: var(--muted);
+	--color-secondary-foreground: var(--secondary-foreground);
+	--color-secondary: var(--secondary);
+	--color-primary-foreground: var(--primary-foreground);
+	--color-primary: var(--primary);
+	--color-popover-foreground: var(--popover-foreground);
+	--color-popover: var(--popover);
+	--color-card-foreground: var(--card-foreground);
+	--color-card: var(--card);
+	--color-foreground: var(--foreground);
+	--color-background: var(--background);
+	--radius-sm: calc(var(--radius) * 0.6);
+	--radius-md: calc(var(--radius) * 0.8);
+	--radius-lg: var(--radius);
+	--radius-xl: calc(var(--radius) * 1.4);
+	--radius-2xl: calc(var(--radius) * 1.8);
+	--radius-3xl: calc(var(--radius) * 2.2);
+	--radius-4xl: calc(var(--radius) * 2.6);
+}
+
+@layer base {
+	* {
+		@apply border-border outline-ring/50;
+	}
+	body {
+		@apply bg-background text-foreground;
+	}
+	html {
+		@apply font-sans;
+	}
+}
+
+/* Cards rise into place, a little later each. Switched off for people who ask for less motion. */
+@keyframes rise {
+	from {
+		opacity: 0;
+		transform: translateY(8px);
+	}
+	to {
+		opacity: 1;
+		transform: none;
+	}
+}
+.reveal {
+	animation: rise 0.35s ease-out both;
+	animation-delay: calc(min(var(--i, 0), 8) * 40ms);
+}
+@media (prefers-reduced-motion: reduce) {
+	.reveal {
+		animation: none;
+	}
+}
+
+/* ---- Motion kit. Everything here is switched off for people who ask for less motion. ---- */
+
+/* A soft bob for the pictures on empty screens. */
+@keyframes float {
+	0%,
+	100% {
+		transform: translateY(0);
+	}
+	50% {
+		transform: translateY(-4px);
+	}
+}
+.float {
+	animation: float 4s ease-in-out infinite;
+}
+
+/* A light sweep across a bar while a scan is working. */
+@keyframes shimmer {
+	from {
+		background-position: 200% 0;
+	}
+	to {
+		background-position: -200% 0;
+	}
+}
+.shimmer {
+	background-image: linear-gradient(90deg, transparent 0%, color-mix(in oklch, var(--primary-foreground) 45%, transparent) 50%, transparent 100%);
+	background-size: 200% 100%;
+	animation: shimmer 1.8s linear infinite;
+}
+
+/* A check mark or icon that pops into place. */
+@keyframes pop {
+	0% {
+		opacity: 0;
+		transform: scale(0.5);
+	}
+	70% {
+		transform: scale(1.12);
+	}
+	100% {
+		opacity: 1;
+		transform: scale(1);
+	}
+}
+.pop {
+	animation: pop 0.45s cubic-bezier(0.2, 0.9, 0.3, 1.2) both;
+}
+
+/* A ring that grows and fades once, to say "this step is happening now". */
+@keyframes ping-once {
+	from {
+		opacity: 0.5;
+		transform: scale(1);
+	}
+	to {
+		opacity: 0;
+		transform: scale(1.9);
+	}
+}
+
+/* The verdict on a report: the box settles in, then its icon, headline and detail follow. */
+@keyframes verdict-box {
+	from {
+		opacity: 0;
+		transform: scale(0.985) translateY(6px);
+	}
+	to {
+		opacity: 1;
+		transform: none;
+	}
+}
+@keyframes verdict-wash {
+	from {
+		background-color: var(--card);
+		border-color: var(--border);
+	}
+}
+@keyframes verdict-step {
+	from {
+		opacity: 0;
+		transform: translateY(8px);
+	}
+	to {
+		opacity: 1;
+		transform: none;
+	}
+}
+.verdict-box {
+	animation:
+		verdict-box 0.45s ease-out both,
+		verdict-wash 0.9s ease-out 0.15s both;
+}
+.verdict-step {
+	animation: verdict-step 0.45s ease-out both;
+	animation-delay: var(--d, 0s);
+}
+.verdict-ring {
+	animation: ping-once 1.1s ease-out 0.6s both;
+}
+
+/* Page changes: only the page content fades, so the menu and top bar stay still. */
+@media (prefers-reduced-motion: no-preference) {
+	.page-view {
+		view-transition-name: page;
+	}
+	::view-transition-group(root) {
+		animation-duration: 0s;
+	}
+	::view-transition-old(page) {
+		animation: 120ms ease-in both vt-out;
+	}
+	::view-transition-new(page) {
+		animation: 220ms ease-out both vt-in;
+	}
+}
+@keyframes vt-out {
+	to {
+		opacity: 0;
+		transform: translateY(-4px);
+	}
+}
+@keyframes vt-in {
+	from {
+		opacity: 0;
+		transform: translateY(8px);
+	}
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.float,
+	.shimmer,
+	.pop,
+	.verdict-box,
+	.verdict-step,
+	.verdict-ring {
+		animation: none;
+	}
+}
+
+/* Product photos: a soft two-colour wash (a different one for each product) shows while the picture loads,
+   and stays behind the "No photo" tile. Low colour, so it reads as calm in light and dark. */
+.photo-ph {
+	--l1: 0.95;
+	--l2: 0.91;
+	background:
+		radial-gradient(120% 90% at 15% 10%, oklch(var(--l1) 0.03 var(--h, 250)) 0%, transparent 60%),
+		radial-gradient(110% 90% at 90% 95%, oklch(var(--l2) 0.04 calc(var(--h, 250) + 70)) 0%, transparent 60%),
+		var(--muted);
+}
+.dark .photo-ph {
+	--l1: 0.32;
+	--l2: 0.27;
+}
+@keyframes photo-sweep {
+	from {
+		transform: translateX(-100%);
+	}
+	to {
+		transform: translateX(100%);
+	}
+}
+.photo-sweep::after {
+	content: '';
+	position: absolute;
+	inset: 0;
+	background: linear-gradient(90deg, transparent, color-mix(in oklch, var(--background) 55%, transparent), transparent);
+	animation: photo-sweep 1.6s ease-in-out infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+	.photo-sweep::after {
+		animation: none;
+		opacity: 0;
+	}
+}
+
+/* A verdict group's colours, set once. Put one of these on an element, then use var(--tone) for the
+   strong colour (icon, border, chart) and var(--tone-soft) for the tint behind it. */
+.tone-safety {
+	--tone: var(--destructive);
+	--tone-soft: var(--destructive-soft);
+}
+.tone-caution {
+	--tone: var(--warning);
+	--tone-soft: var(--warning-soft);
+}
+.tone-clear {
+	--tone: var(--success);
+	--tone-soft: var(--success-soft);
+}
+.tone-unknown {
+	--tone: var(--unknown);
+	--tone-soft: var(--unknown-soft);
+}
+
+/* Touch screens: every control is at least 40px wide and tall, so a finger can hit it.
+   A mouse keeps the compact shadcn sizes; nothing here applies to it. No component file is edited:
+   the rules go by each component's data-slot. `tap` is for plain links and buttons of our own. */
+@media (pointer: coarse) {
+	[data-slot='button'],
+	[data-slot='toggle'],
+	[data-slot='toggle-group-item'],
+	[data-slot='tabs-trigger'],
+	[data-slot='select-trigger'],
+	[data-slot='select-item'],
+	[data-slot='dropdown-menu-item'],
+	[data-slot='command-item'],
+	[data-slot='collapsible-trigger'],
+	[data-slot='accordion-trigger'],
+	[data-slot='dialog-close'],
+	[data-slot='sheet-close'],
+	[data-slot='alert-dialog-cancel'],
+	[data-slot='alert-dialog-action'],
+	[data-slot='sidebar-trigger'],
+	[data-sidebar='menu-button'],
+	[data-slot='input'],
+	[data-slot='input-group'],
+	[data-slot='input-group-control'],
+	[data-slot='command-input'],
+	[data-sonner-toast] button,
+	.tap {
+		min-height: 2.5rem;
+		min-width: 2.5rem;
+	}
+	.tap {
+		display: inline-flex;
+		align-items: center;
+	}
+	/* Rows of tabs grow with their taller tabs instead of clipping them. */
+	[data-slot='tabs-list'],
+	[data-slot='command-input-wrapper'] {
+		height: auto;
+	}
+	/* Small boxes keep their look and get an invisible, larger area to press. */
+	[data-slot='checkbox'],
+	[data-slot='radio-group-item'],
+	[data-slot='switch'] {
+		position: relative;
+	}
+	[data-slot='checkbox']::after,
+	[data-slot='radio-group-item']::after {
+		content: '';
+		position: absolute;
+		inset: -0.75rem;
+	}
+	[data-slot='switch']::after {
+		content: '';
+		position: absolute;
+		inset: -0.75rem -0.25rem;
+	}
+}
