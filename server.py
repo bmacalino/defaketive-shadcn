@@ -138,5 +138,7 @@ def saved_popular():
 webapp.app.register_blueprint(saved)
 
 if __name__ == "__main__":
-    # The same settings as the original's own start-up (see the bottom of webapp.py).
-    webapp.app.run(host="127.0.0.1", port=int(os.environ.get("PORT", "5000")), debug=True, use_reloader=False)
+    # Flask's debug mode shows a developer's error page in the browser. That is for changing the code (dev.cmd
+    # sets DEFAKETIVE_DEBUG=1), not for using or demonstrating the app, so it is off unless asked for.
+    debug = os.environ.get("DEFAKETIVE_DEBUG") == "1"
+    webapp.app.run(host="127.0.0.1", port=int(os.environ.get("PORT", "5000")), debug=debug, use_reloader=False)

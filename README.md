@@ -46,11 +46,21 @@ browser  ->  Vite (localhost:5173)  --/api-->  server.py (127.0.0.1:5000)  ->  d
 
 ## Run it
 
-1. In this folder run `npm install` (first time only), then `npm run dev`.
-2. In another window start the server: `..\Capstone-Version-Control-Version-1.1\.venv\Scripts\python.exe server.py`
-3. Open <http://localhost:5173>.
+**To use it or show it: double-click `start.cmd`.** It
 
-`start.cmd` does all of that for you.
+1. prepares the app (a build, about half a minute) only when the code changed since the last time;
+2. starts `server.py` in its own window (port 5000) and serves the finished build (port 5173);
+3. opens <http://localhost:5173> by itself once both answer. If the app is already running, it just opens it.
+
+Keep both windows open while you use the app. Close them to stop it.
+
+**To change the code: `dev.cmd`.** It starts the same server and the developer server, which updates the page as
+you type. It is slower on first load, and it shows developer error pages (also Flask's own, through
+`DEFAKETIVE_DEBUG=1`), which is why it is not what `start.cmd` uses.
+
+By hand, the same thing is: `npm install` (first time only), then `npm run build` and `npm run preview -- --port 5173`
+(or `npm run dev -- --port 5173`), and in another window
+`..\Capstone-Version-Control-Version-1.1\.venv\Scripts\python.exe server.py`.
 
 If the server runs somewhere else, set `DEFAKETIVE_API` first, for example
 `set DEFAKETIVE_API=http://127.0.0.1:8000`. If the original app lives somewhere else, set `DEFAKETIVE_ORIGINAL`
@@ -262,5 +272,37 @@ Add more shadcn components with `npx shadcn-svelte@latest add <name>`.
 ```
 npm run check         types and Svelte checks
 npm run check:colors  verdict colours: contrast and colour-blind safety
-npm run build     static build into build/
+npm run build         static build into build/ (start.cmd serves it)
+npm run test:e2e      the end-to-end tests, see below
 ```
+
+## Tests
+
+`tests/e2e/` holds 17 test files, about 400 checks. They drive the Chrome that is already installed and walk the
+app the way a person would: signing up and in, a pretend live scan, the guest screen, the lock on the app, every
+verdict group and its colour, the wording, error screens, tap targets on a phone, the report, and accessibility
+(axe, WCAG 2.1 AA, light and dark).
+
+```
+npm run test:e2e                     every file, against a fresh build
+npm run test:e2e -- wording errors   only those files
+npm run test:e2e -- --dev            against the developer server instead of the build
+```
+
+Close the app first: the command starts its own two servers and refuses to run if ports 5000 or 5173 are busy, so
+it can never stop an app you are using. It prints passed and failed for each file, then stops its servers. Logs and
+the scratch accounts database are in `tests/.tmp/`, screenshots in `tests/e2e/shots/` (neither is kept in git).
+
+What the tests touch:
+
+- **Accounts:** they create test accounts in a scratch database (`tests/.tmp/accounts-test.db`), never in the
+  real `instance/accounts.db`.
+- **Products:** they read the saved products in the original's `defaketive.db` and do not write to it. Several
+  checks use products that are saved there by name ("Type C Fast Charging…", "DoubleShock…", "U19 Macaron…"); if
+  those are ever removed, those checks need another product.
+- **Marketplaces:** none is contacted. Live scans are pretended inside the test browser.
+
+## Version control
+
+This folder is its own git repository, local only: nothing is uploaded anywhere unless you add a remote and push.
+`backups/` (copies of the real database) is deliberately left out of it.
