@@ -1,8 +1,8 @@
 # DeFaketive (shadcn version)
 
 A second face for DeFaketive, built with [shadcn-svelte](https://shadcn-svelte.com) (SvelteKit, Tailwind v4,
-Lucide icons, the plain **neutral** look). The original app in `../Capstone-Version-Control-Version-1.1` is
-not touched.
+Lucide icons, the plain **neutral** look with one brand colour, purple). The original app in
+`../Capstone-Version-Control-Version-1.1` is not touched.
 
 This app only draws the screens. Everything real still happens in the original Flask app: accounts, guest
 scan limits, live scans, the review checker, and the exact wording of every verdict. The new app asks it
@@ -27,6 +27,14 @@ browser  ->  Vite (localhost:5173)  --/api-->  server.py (127.0.0.1:5000)  ->  d
   `GET /api/saved/products` (every analyzed listing, as cards), `GET /api/saved/detail?link=` (one product with
   all its reviews and its similar products) and `GET /api/saved/popular` (products saved by two or more accounts). The Products page, Ctrl+K search, name and link lookups on Analyze and wishlist suggestions
   all use them.
+- **`saved_pool.py`.** Every list, report and set of similar products is built from all the saved products, and
+  reading them from the database means parsing each one with all its reviews. With 27 products nobody noticed; with
+  168 products and 20,609 reviews it took 2.1 seconds on every request, and more when a page asked for three things
+  at once (13 Oct 2026). So `server.py` keeps them in memory, about 150 MB, and looks at the database file before
+  each use: nothing changed means nothing is read, and after a scan only the product that was saved is read again.
+  Measured after: the product list 0.3 seconds (was 2.9), a report 0.1 seconds (was 2.5). The original app's own
+  `/api/picks`, `/api/products/detail` and `/api/wishlist/popular` are given the same kept products while they run
+  inside `server.py`. The kept products are shared by all requests, so nothing in `server.py` may alter one.
 - **Who sees what.** There are two kinds of data, kept apart on purpose:
 
   | | Where it lives | Who sees it |
@@ -117,15 +125,27 @@ product that was already checked and to show its report.
   A **scan** is the work a check starts when the product is new: it collects fresh reviews, it is what runs, and it is
   what is counted ("3 free scans"). What you get is a **report**. The app does not say "analyze" for what a person
   does. (The original app's own progress messages and its "Not analyzed yet" headline still do; they are shown as sent.)
-- **A running scan says how long it usually takes** ("about 3 minutes"), on the guest screen and on Check a product
-  when the scan is of one link. The number is `TYPICAL_SCAN_TIME` in `src/lib/product.ts`. It was timed on one real
-  Lazada listing (195 seconds); change it there if more scans show a different figure.
+- **A running scan says how long it usually takes**, on the guest screen and on Check a product when the scan is of
+  one link: "1 to 2 minutes" for Lazada, "about 3 minutes" for Shopee and Temu. The figures are in `typicalScanTime`
+  in `src/lib/product.ts`. Lazada is read in the background from its review feed and was timed on 12 Oct 2026 (63
+  seconds for a listing with 145 reviews, 134 for one with 298). Shopee and Temu have not been timed: theirs is the
+  earlier figure from one Lazada listing read off the page (195 seconds).
+- **A scan that needs the person says so.** Lazada scans open no window. When Lazada asks for a login or a check,
+  the original app's scraper puts a Chrome window on screen and the job's `needs_you` flag turns on; the running
+  panel, the Home card and a notice then say "This scan needs you" with the server's instructions, and go back to
+  normal when the scan moves on. Checked in `tests/e2e/scan-flow.mjs`, in light and in dark.
 - **Four groups, one name each**, used everywhere a group is named: chips on cards, filters, numbers, charts and the
   legend. The names live in one place, `GROUP_NAMES` in `src/lib/product.ts`. The sentence under a chip (the verdict
   headline, such as "No warning signs found") is the server's and says why.
 - Colour is never the only signal: every verdict chip also has an icon (a different shape for each group) and a word.
-- The interface is plain black and white on purpose, so colour always means something. Four colours, used the same way
-  in chips, banners, charts and dots:
+- **One brand colour, purple, and it never means a verdict.** It is on the logo dot, the main buttons, links, switches,
+  the scan progress and the focus ring, and nowhere else. Anything that counts reviews (the bars on a report) or shows
+  a verdict keeps its own colour. It is defined once, as `--brand` in `src/routes/layout.css` (a lighter purple in
+  dark mode), and `--primary` points at it. Purple was chosen by test, not by taste: `npm run check:colors` checks
+  that it reads 4.5:1 or better as a button and as a link on every background, and that it stays clearly apart from
+  each of the four verdict colours, also for colour blindness. Bright blue failed that test (too close to teal).
+- Everything else is plain black and white on purpose, so colour always means something. Four verdict colours, used the
+  same way in chips, banners, charts and dots:
 
   | Group | Colour | Icon | When |
   | --- | --- | --- | --- |
@@ -203,9 +223,15 @@ include it. The one exception is a link inside a sentence.
 
 ## Re-checking products saved by an older checker
 
-A product that an older version of the checker analysed shows "Not analyzed yet". `scripts/recheck_products.py`
-re-reads the reviews already stored for it and saves a verdict from the current checker. It uses the original app's
-own functions, edits none of its code, and contacts no marketplace. Close both apps first, then run it with the
+A saved report is shown as it was stored: it does not change when the checker does. Two kinds fall behind. A report
+in a format the app no longer reads shows "Not analyzed yet". A report in today's format made by an earlier version
+of the checker is still shown, with one grey line under the verdict ("This report was made with an earlier version of
+the checker", `behindChecker` in `src/lib/product.ts`; `server.py` adds `checked_with_current` to what it sends), and
+`start.cmd` says so when it starts. Run the re-check after any change to the checker.
+
+`scripts/recheck_products.py` re-reads the reviews already stored for both kinds and saves a verdict from the current
+checker. It asks the original app what "current" means (`analysis_is_current`), uses the original app's own
+functions, edits none of its code, and contacts no marketplace. Close both apps first, then run it with the
 original's Python from this folder:
 
 ```
@@ -224,6 +250,36 @@ original's Python from this folder:
 rows that are really a browser error page, such as "This site can't be reached", which a failed scrape once saved as
 if it were a product. It only touches rows with that title and no reviews.
 
+`scripts/rescan_products.py` is for when the reader changed, not the checker. It scans the saved **Lazada** products
+again with the original app's own steps (no Chrome window, about a minute or two each) and replaces each report, where
+a re-check could only re-read the old reader's text. Same habits: dry run by default, `--apply` backs up first and
+refuses while the app is running. A report is replaced only if the fresh scan read Lazada's review feed and finished
+every star level; otherwise the old report stays and the reason is printed. It never waits for or answers a login or
+verification, and two failures in a row stop it. The scan files go to `backups/rescan-<date>/`. When a report is
+replaced, that product's old review rows are removed too, so the database's review count stays the number of reviews
+the reports hold. Temu and Shopee products are not scanned. `--database <copy>` and `--limit 1` try it on a copy.
+
+`scripts/scan_more_products.py` and `scripts/add_scanned_products.py` give "Similar products" more to choose from. A
+report can only be offered products the app has a report for, and only those with no warning signs and not one
+safety mention, so a small pool means most reports show nothing.
+
+- `scan_more_products.py` collects. `--known` takes the listings in the original app's own lists that are neither
+  saved nor scanned; `--search "wireless earbuds" "power bank"` takes the first listings Lazada returns for each
+  search. A listing with fewer than 100 ratings is looked at once and passed over. It scans as the app does (no
+  Chrome window, the review feed, 60 reviews per star level) into `backups/pool-scans/`, never waits for or answers
+  a login or verification, and stops everything if a run reads nothing from the feed. Without `--scan` it only
+  lists what it would do and contacts nobody.
+- `add_scanned_products.py` adds what was scanned but never saved: those pool scans, and the listings the original
+  app scanned to measure what is typical (its `research/data/reference_scans/feed/`). Each one not already saved
+  (same Lazada item) is read by the app's own checker and saved the way the app saves a scan. No marketplace is
+  contacted, a product already saved is left as it is, and nobody's History changes.
+
+The pool has a running cost: every saved report has to be re-checked after a change to the checker
+(`recheck_products.py`), at about a fifth of a second a review. Same habits: dry run by default, `--apply` backs up first and refuses
+while the app is running, `--database <copy>` and `--limit 2` for a trial. Reading the reviews takes about half an
+hour, so `--prepare` does that part ahead with the app still open (it writes nothing to the database, and keeps its
+results in `backups/add-products-prepared/`); `--apply` then only has to save them.
+
 ## Where this differs from stock shadcn-svelte
 
 Only to keep text readable (WCAG AA, checked with axe on every page, in light and dark, plus the pop-ups):
@@ -232,6 +288,9 @@ Only to keep text readable (WCAG AA, checked with axe on every page, in light an
 - Red text on a pale red tint read 4.0:1, so `--destructive-ink` and `--destructive-soft` are used for the
   destructive Button, Badge and Alert and for the safety chips.
 - `--warning`, `--success`, `--unknown` (and their `-soft` tints) are new, for the verdict colours above, and `--destructive` is a little darker than stock so red text on white passes with room to spare.
+
+And one change for looks: `--brand` (purple) is new, and `--primary`, `--sidebar-primary` and `--ring` use it instead of
+stock black and grey. The two Progress bars that count reviews are given `bg-foreground`, so they stay plain.
 
 The dark theme, radius, Inter font and every other token are the shadcn-svelte defaults.
 
@@ -284,16 +343,23 @@ Add more shadcn components with `npx shadcn-svelte@latest add <name>`.
 
 ```
 npm run check         types and Svelte checks
-npm run check:colors  verdict colours: contrast and colour-blind safety
+npm run check:colors  verdict colours and the brand colour: contrast and colour-blind safety
 npm run build         static build into build/ (start.cmd serves it)
 npm run test:e2e      the end-to-end tests, see below
 ```
 
+`saved_pool.py` has tests of its own, run with the original app's Python. They work on a database in a temporary
+folder, never the real one:
+
+```
+..\Capstone-Version-Control-Version-1.1\.venv\Scripts\python.exe -m unittest discover -s tests -p "test_*.py"
+```
+
 ## Tests
 
-`tests/e2e/` holds 17 test files, about 400 checks. They drive the Chrome that is already installed and walk the
+`tests/e2e/` holds 18 test files, about 500 checks. They drive the Chrome that is already installed and walk the
 app the way a person would: signing up and in, a pretend live scan, the guest screen, the lock on the app, every
-verdict group and its colour, the wording, error screens, tap targets on a phone, the report, and accessibility
+verdict group and its colour, the brand colour, the wording, error screens, tap targets on a phone, the report, and accessibility
 (axe, WCAG 2.1 AA, light and dark).
 
 ```
@@ -310,7 +376,9 @@ What the tests touch:
 
 - **Accounts:** they create test accounts in a scratch database (`tests/.tmp/accounts-test.db`), never in the
   real `instance/accounts.db`.
-- **Products:** they read the saved products in the original's `defaketive.db` and do not write to it. Several
+- **Products:** they read the saved products in the original's `defaketive.db` and add or remove none. (The
+  original app itself saves the product of its newest scan file again each time a new browser session starts, with
+  or without these tests, so that one product's report date moves to today.) Several
   checks use products that are saved there by name ("Type C Fast Charging…", "DoubleShock…", "U19 Macaron…"); if
   those are ever removed, those checks need another product.
 - **Marketplaces:** none is contacted. Live scans are pretended inside the test browser.

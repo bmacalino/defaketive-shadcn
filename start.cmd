@@ -60,4 +60,6 @@ start "DeFaketive server (keep open)" /d "%OLD%" "%PY%" "%~dp0server.py"
 echo Starting the app on http://localhost:5173 ...
 echo The browser opens by itself when both are ready. Keep this window open.
 start "" /b node scripts\wait-and-open.mjs
+rem Says so here when saved reports are older than the checker (it prints nothing when all are up to date).
+start "" /b "%PY%" "%~dp0scripts\recheck_products.py" --behind
 call npm run preview -- --port 5173 --strictPort

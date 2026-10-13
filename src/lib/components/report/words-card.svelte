@@ -34,7 +34,8 @@
 					title="Show reviews that mention this"
 					onclick={() => onpick(item.word)}>{item.word}</Button
 				>
-				<Progress value={(item.count / max) * 100} aria-label="{item.count} reviews" />
+				<!-- A count of reviews: plain, never the brand colour. -->
+				<Progress value={(item.count / max) * 100} aria-label="{item.count} reviews" class="[&>div]:bg-foreground" />
 				<b class="text-sm tabular-nums">{item.count}×</b>
 			</div>
 		{:else}

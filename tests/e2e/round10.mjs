@@ -16,7 +16,9 @@ const pool = await (await fetch(`${base}/api/saved/products`)).json();
 const byName = (pattern) => pool.products.find((p) => pattern.test(p.name));
 const CLEAN = byName(/Type C Fast Charging/i);
 const CAUTION = byName(/DoubleShock/i);
-const FEW = byName(/U19 Macaron/i);
+// A report read partly and not by star level, with too few reviews for a verdict and no warning. Saved Lazada
+// products were all scanned again by star level on 12 Oct 2026, so this is a Temu one.
+const FEW = byName(/wireless earphones true wireless earphones/i);
 const report = (p, guest = false) => `${base}${guest ? '/scan' : '/app'}/report?link=${encodeURIComponent(p.link)}`;
 
 const browser = await chromium.launch({ channel: 'chrome', headless: true });
@@ -78,7 +80,7 @@ check(pool.products.every((p) => p.updated_at || p.analysis_date || p.analyzed_a
 	// A product whose collection was not by star level: "N of M".
 	await openReport(page, FEW);
 	text = await pageText(page);
-	check(/We read 15 of this listing's 4,048 reviews\./.test(text), 'a partly read listing says "We read 15 of this listing\'s 4,048 reviews."');
+	check(/We read 15 of this listing's 377 reviews\./.test(text), 'a partly read listing says "We read 15 of this listing\'s 377 reviews."');
 	const fewDate = await page.evaluate(() => [...document.querySelectorAll('dl > div')].find((el) => el.querySelector('dt')?.textContent.trim() === 'Report date')?.querySelector('dd')?.textContent.trim() ?? '');
 	check(/^[A-Z][a-z]{2} \d{1,2}, \d{4}$/.test(fewDate), `a re-checked product shows its date too (${fewDate})`);
 

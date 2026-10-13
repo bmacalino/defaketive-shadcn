@@ -22,6 +22,10 @@ Thumbs.db
 vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
 
+# Python's compiled copies of the scripts
+__pycache__/
+*.py[cod]
+
 # Copies of the real database (they hold real data and are large)
 /backups
 

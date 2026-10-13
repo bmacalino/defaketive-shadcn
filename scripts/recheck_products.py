@@ -1,5 +1,9 @@
 """Re-check the saved products that an older checker analysed, so they get a verdict from the current one.
 
+"Older" means either a report in a format the app no longer reads ("Not analyzed yet") or a report made by an
+earlier version of the checker. The app shows a saved report as it was stored, so run this after the checker
+changes.
+
 It uses the original app's own functions (nothing in the original app is edited) and the reviews that are
 already stored in its database. No marketplace is contacted.
 
@@ -38,6 +42,7 @@ sys.path.insert(0, str(ORIGINAL))
 os.chdir(ORIGINAL)
 
 from dashboard_utils import (  # noqa: E402
+    analysis_is_current,
     analyze_products,
     badge_view,
     is_badge_summary,
@@ -78,9 +83,23 @@ def counts(path: Path) -> dict[str, int]:
         }
 
 
+def recheck_reason(product: dict[str, Any]) -> str | None:
+    """Why a saved report is behind the checker the app runs, or None when it is current.
+
+    Two ways to be behind. The app shows "Not analyzed yet" when the saved result is not a badge summary at
+    all. And a report can be in today's format but made by an earlier version of the checker: the app shows
+    it as it was stored, so a fix to the checker does not reach it until it is re-checked. "Current" is
+    decided by the original app's own test, so this script cannot disagree with the app.
+    """
+    if not is_badge_summary(product.get("sentiment_summary") or {}):
+        return "older report format"
+    if not analysis_is_current([product]):
+        return "older checker version"
+    return None
+
+
 def needs_recheck(product: dict[str, Any]) -> bool:
-    """True for a product the app shows as "Not analyzed yet": its saved result is not a badge summary."""
-    return not is_badge_summary(product.get("sentiment_summary") or {})
+    return recheck_reason(product) is not None
 
 
 def review_total(product: dict[str, Any]) -> int:
@@ -120,6 +139,10 @@ def back_up(source: Path, reason: str = "recheck") -> Path:
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     parser.add_argument("--apply", action="store_true", help="back up the database, then re-check and save")
+    parser.add_argument(
+        "--behind", action="store_true",
+        help="only say how many saved reports could be re-checked; exit code 3 when there are any (used by start.cmd)",
+    )
     arguments = parser.parse_args()
     for stream in (sys.stdout, sys.stderr):
         stream.reconfigure(encoding="utf-8", errors="replace")
@@ -129,6 +152,16 @@ def main() -> int:
         sys.exit(f"No database at {database}.")
     rows = saved_rows(database)
     old = [row for row in rows if needs_recheck(row["product"])]
+    if arguments.behind:
+        behind = sum(1 for row in old if review_total(row["product"]) > 0)
+        if behind:
+            print(
+                f"\nNote: {behind} saved report{'' if behind == 1 else 's'} {'was' if behind == 1 else 'were'} made with an "
+                "earlier version of the checker.\n"
+                "They are still shown, marked as such. To bring them up to date, close DeFaketive and run:\n"
+                "  ..\\Capstone-Version-Control-Version-1.1\\.venv\\Scripts\\python.exe scripts\\recheck_products.py --apply\n"
+            )
+        return 3 if behind else 0
     # A product with no stored reviews has nothing to re-read, so it is left exactly as it is.
     chosen = [row for row in old if review_total(row["product"]) > 0]
     empty = [row for row in old if review_total(row["product"]) == 0]
@@ -148,7 +181,10 @@ def main() -> int:
     print("\nTo re-check:")
     for row in chosen:
         product = row["product"]
-        print(f"  {review_total(product):>4} reviews  {platform_name(product):<10}  {short(product.get('name'))}")
+        print(
+            f"  {review_total(product):>4} reviews  {platform_name(product):<10}  {short(product.get('name'), 44):<44}"
+            f"  {recheck_reason(product)}"
+        )
     print(f"\nRough time: {max(1, round(reviews * SECONDS_PER_REVIEW / 60))} minute(s), plus loading the model.")
 
     if not arguments.apply:

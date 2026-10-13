@@ -122,6 +122,8 @@ export interface Product {
 	analysis_date?: string;
 	analyzed_at?: string;
 	updated_at?: string;
+	/** False when the saved report was made by an earlier version of the checker (server.py adds it). */
+	checked_with_current?: boolean;
 	reviews_collected?: number;
 	comments?: Review[];
 	sentiment_summary?: SentimentSummary;
@@ -156,6 +158,8 @@ export interface Job {
 	stage_label: string;
 	progress: number;
 	message: string;
+	/** A Chrome window has opened for a login or a check, and `message` says what to do in it. */
+	needs_you?: boolean;
 	platform: string;
 	query: string;
 	created_at: string;

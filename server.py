@@ -25,9 +25,8 @@ Run it with the original's Python (start.cmd does this):
 from __future__ import annotations
 
 import os
-import sqlite3
 import sys
-from contextlib import closing
+import threading
 from pathlib import Path
 from typing import Any
 from urllib.parse import parse_qs, urlsplit
@@ -43,16 +42,34 @@ os.chdir(ORIGINAL)
 
 import accounts  # noqa: E402  (the original accounts module)
 import webapp  # noqa: E402  (the original app; importing it creates `webapp.app`)
-from dashboard_utils import rank_recommendations, with_badge_view  # noqa: E402
-from data_store import DEFAULT_DB, load_saved_products  # noqa: E402
+from dashboard_utils import analysis_is_current, merge_product_catalogs, rank_recommendations, with_badge_view  # noqa: E402
+from data_store import DEFAULT_DB  # noqa: E402
 from flask import Blueprint, jsonify, request  # noqa: E402
 
+from saved_pool import SavedPool  # noqa: E402  (beside this file)
+
 # These helpers are private to the original module. Fail with a clear message if they ever change.
-for name in ("app", "_products", "_cards", "_card", "_accounts_db"):
+for name in ("app", "_products", "_cards", "_card", "_accounts_db", "_merged_catalog"):
     if not hasattr(webapp, name):
         sys.exit(f"webapp.{name} is missing: server.py needs updating to match the original app.")
 
 saved = Blueprint("saved", __name__, url_prefix="/api/saved")
+
+# Every saved product, kept between requests and read again only when the database changes (see saved_pool.py).
+# Its products are shared by all requests: nothing here alters one.
+pool = SavedPool(DEFAULT_DB)
+
+
+def _merged_catalog() -> list[dict[str, Any]]:
+    """The original app's own merge of the session catalog and the saved products, reading them from the pool.
+
+    Its /api/picks, /api/products/detail and /api/wishlist/popular call this, and the screens call those. The
+    original reads the whole database each time, which is what made every page wait once it held 168 products.
+    """
+    return merge_product_catalogs(webapp._products(), pool.snapshot()[0])
+
+
+webapp._merged_catalog = _merged_catalog
 
 
 def _identity(link: Any) -> tuple[str, ...]:
@@ -71,26 +88,16 @@ def _identity(link: Any) -> tuple[str, ...]:
     return (host, path)
 
 
-def _saved_dates() -> dict[tuple[str, ...], str]:
-    """When each product's report was last saved, by listing. Read only.
-
-    The saved product itself carries no date, so without this every report says "Report date: Unavailable".
-    The database row does record when it was last written, which is when its report was last made.
-    """
-    try:
-        with closing(sqlite3.connect(f"file:{Path(DEFAULT_DB).as_posix()}?mode=ro", uri=True)) as connection:
-            rows = connection.execute("SELECT link, updated_at FROM products").fetchall()
-    except sqlite3.Error:
-        return {}
-    return {_identity(link): updated_at for link, updated_at in rows if link and updated_at}
-
-
 def _catalog() -> list[dict[str, Any]]:
     """This visitor's session catalog first, then everything in the database. One entry per listing."""
     merged: list[dict[str, Any]] = []
     seen: set[tuple[str, ...]] = set()
-    dates = _saved_dates()
-    for product in [*webapp._products(), *load_saved_products()]:
+    saved_products, saved_at = pool.snapshot()
+    # When each product's report was last saved, by listing. The saved product itself carries no date, so without
+    # this every report says "Report date: Unavailable". The database row records when it was last written, which
+    # is when its report was last made.
+    dates = {_identity(link): updated_at for link, updated_at in saved_at.items()}
+    for product in [*webapp._products(), *saved_products]:
         if not isinstance(product, dict) or not product.get("link"):
             continue
         key = _identity(product["link"])
@@ -104,10 +111,23 @@ def _catalog() -> list[dict[str, Any]]:
     return merged
 
 
+def _checked_with_current(product: dict[str, Any]) -> bool:
+    """Whether this saved report was made by the checker the app is running now.
+
+    A saved report is shown as it was stored. When the checker is changed afterwards the report does not
+    change with it, so the screens say so until it is re-checked (scripts/recheck_products.py) or the
+    product is scanned again. The original app's own test decides what "current" means.
+    """
+    return analysis_is_current([product])
+
+
 @saved.get("/products")
 def saved_products():
     products = _catalog()
-    return jsonify({"products": webapp._cards(products), "count": len(products)})
+    cards = webapp._cards(products)
+    for card, product in zip(cards, products):
+        card["checked_with_current"] = _checked_with_current(product)
+    return jsonify({"products": cards, "count": len(products)})
 
 
 @saved.get("/detail")
@@ -121,7 +141,8 @@ def saved_detail():
     if not product:
         return jsonify({"error": "Product not found in the saved database."}), 404
     recommendations = rank_recommendations(product, catalog, limit=3)
-    return jsonify({"product": with_badge_view(product), "recommendations": webapp._cards(recommendations)})
+    shown = {**with_badge_view(product), "checked_with_current": _checked_with_current(product)}
+    return jsonify({"product": shown, "recommendations": webapp._cards(recommendations)})
 
 
 @saved.get("/popular")
@@ -141,4 +162,6 @@ if __name__ == "__main__":
     # Flask's debug mode shows a developer's error page in the browser. That is for changing the code (dev.cmd
     # sets DEFAKETIVE_DEBUG=1), not for using or demonstrating the app, so it is off unless asked for.
     debug = os.environ.get("DEFAKETIVE_DEBUG") == "1"
+    # Read the saved products while the server starts, so the first page does not wait for them.
+    threading.Thread(target=pool.snapshot, daemon=True).start()
     webapp.app.run(host="127.0.0.1", port=int(os.environ.get("PORT", "5000")), debug=debug, use_reloader=False)

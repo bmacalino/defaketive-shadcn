@@ -22,7 +22,9 @@
 	const deciding = $derived(badges.filter((badge) => !badge.informs_only));
 	const informing = $derived(badges.filter((badge) => badge.informs_only));
 	// The safety bar takes the product's own colour: red only when the reports are serious or repeated.
+	// Every other bar is plain: a count of reviews is never shown in the brand colour.
 	const safetyBar = $derived(chipFor(product).kind === 'safety' ? '[&>div]:bg-destructive' : '[&>div]:bg-warning');
+	const plainBar = '[&>div]:bg-foreground';
 	const width = (mentions: number) =>
 		uniqueCount ? Math.min(100, Math.max(mentions ? 3 : 0, (mentions / uniqueCount) * 100)) : 0;
 </script>
@@ -39,7 +41,7 @@
 		<Progress
 			value={width(badge.mentions)}
 			aria-label="{badge.mentions} of {uniqueCount} reviews"
-			class={badge.category === 'safety' && badge.mentions ? safetyBar : ''}
+			class={badge.category === 'safety' && badge.mentions ? safetyBar : plainBar}
 		/>
 		<p class="text-muted-foreground text-sm">{badge.summary}</p>
 		{#if quote}

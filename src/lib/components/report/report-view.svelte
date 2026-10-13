@@ -28,6 +28,7 @@
 	import { Tabs, TabsContent, TabsList, TabsTrigger } from '#lib/components/ui/tabs/index.js';
 	import {
 		accuracyCopy,
+		behindChecker,
 		chipFor,
 		counts,
 		GROUP_NAMES,
@@ -391,6 +392,14 @@
 				<p class="bg-muted rounded-lg px-3 py-2 text-sm">
 					This product is shown as <b>{GROUP_NAMES.caution}</b> because {safetyMentions} review{safetyMentions === 1 ? ' mentions' : 's mention'} a
 					safety concern. One mention is enough for a closer look, whatever the overall verdict says.
+				</p>
+			{/if}
+			{#if behindChecker(product)}
+				<!-- A saved report does not change when the checker does. Say so instead of showing it as today's. -->
+				<p class="bg-muted text-muted-foreground rounded-lg px-3 py-2 text-sm" data-behind-checker>
+					This report was made with an earlier version of the checker.
+					<a class="tap text-primary font-medium underline underline-offset-4" href={checkHref}>Check it again</a>
+					to bring it up to date.
 				</p>
 			{/if}
 			<!-- One thing to do next, chosen by the verdict. -->

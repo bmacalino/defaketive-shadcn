@@ -160,10 +160,10 @@
 		<p class="text-muted-foreground text-center text-sm">
 			{#if signup}
 				Already have an account?
-				<button type="button" class="text-foreground underline underline-offset-4" onclick={() => (ui.authKind = 'signin')}>Sign in</button>
+				<button type="button" class="text-primary underline underline-offset-4" onclick={() => (ui.authKind = 'signin')}>Sign in</button>
 			{:else}
 				No account yet?
-				<button type="button" class="text-foreground underline underline-offset-4" onclick={() => (ui.authKind = 'signup')}>Sign up — it's free</button>
+				<button type="button" class="text-primary underline underline-offset-4" onclick={() => (ui.authKind = 'signup')}>Sign up — it's free</button>
 			{/if}
 		</p>
 	</DialogContent>

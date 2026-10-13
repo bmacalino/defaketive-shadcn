@@ -1,11 +1,14 @@
-// Checks the four verdict colours in src/routes/layout.css, so a change to them can be tested instead of judged by eye.
+// Checks the four verdict colours and the brand colour in src/routes/layout.css, so a change to them can be tested
+// instead of judged by eye.
 //
 //   npm run check:colors
 //
 // For light and dark it reads the tokens and checks that
 //   - each strong colour (icon, border, chart) reads 3:1 or better on the card and on its own tint,
 //   - the normal text colour reads 7:1 or better on each tint (text on a tint is never coloured),
-//   - the four colours stay clearly apart for normal vision and for protan, deutan and tritan colour blindness.
+//   - the four colours stay clearly apart for normal vision and for protan, deutan and tritan colour blindness,
+//   - the brand colour reads 4.5:1 or better as button text and as a link on every background it can sit on, its
+//     focus ring reads 3:1 on a card, and it stays just as clearly apart from each of the four verdict colours.
 // Exits with an error if anything falls short.
 import { readFileSync } from 'node:fs';
 
@@ -62,6 +65,7 @@ const simulate = (rgb, m) => (m ? m.map((row) => clamp(row[0] * rgb[0] + row[1] 
 const TONES = { safety: ['destructive', 'destructive-soft'], caution: ['warning', 'warning-soft'], clear: ['success', 'success-soft'], unknown: ['unknown', 'unknown-soft'] };
 const MIN_STRONG = 3;
 const MIN_TEXT = 7;
+const MIN_BRAND_TEXT = 4.5;
 const MIN_APART = 0.09;
 
 let failed = 0;
@@ -102,6 +106,30 @@ for (const [mode, source] of [['light', block(':root')], ['dark', block('.dark')
 		if (!ok) failed += 1;
 		console.log(`  ${ok ? 'ok  ' : 'FAIL'} apart for ${kind.padEnd(13)} closest pair ${closest.pair} (${closest.d.toFixed(3)})`);
 	}
+
+	// The brand colour: readable as a button and as a link, a visible focus ring, and never mistaken for a verdict.
+	const brand = toLinear(get('brand'));
+	const onBrand = contrast(toLinear(get('brand-foreground')), brand);
+	const grounds = { page: 'background', card: 'card', 'grey row': 'muted', ...Object.fromEntries(Object.entries(TONES).map(([tone, [, softName]]) => [`${tone} tint`, softName])) };
+	let weakest = { c: Infinity, where: '' };
+	for (const [where, name] of Object.entries(grounds)) {
+		const c = contrast(brand, toLinear(get(name)));
+		if (c < weakest.c) weakest = { c, where };
+	}
+	const ring = contrast(toLinear(get('ring')), card);
+	const readable = onBrand >= MIN_BRAND_TEXT && weakest.c >= MIN_BRAND_TEXT && ring >= MIN_STRONG;
+	if (!readable) failed += 1;
+	console.log(`  ${readable ? 'ok  ' : 'FAIL'} brand    text on a button ${onBrand.toFixed(1)}:1   as a link, at its weakest (${weakest.where}) ${weakest.c.toFixed(1)}:1   focus ring on card ${ring.toFixed(1)}:1`);
+	let nearest = { d: Infinity, what: '' };
+	for (const [kind, matrix] of Object.entries(BLINDNESS)) {
+		for (const tone of names) {
+			const d = distance(simulate(brand, matrix), simulate(strong[tone], matrix));
+			if (d < nearest.d) nearest = { d, what: `${tone}, ${kind}` };
+		}
+	}
+	const apart = nearest.d >= MIN_APART;
+	if (!apart) failed += 1;
+	console.log(`  ${apart ? 'ok  ' : 'FAIL'} brand    apart from every verdict colour; nearest is ${nearest.what} (${nearest.d.toFixed(3)})`);
 }
 console.log(failed ? `\n${failed} check(s) FAILED` : '\nAll colour checks passed.');
 process.exit(failed ? 1 : 0);

@@ -15,7 +15,7 @@
 	import { Kbd } from '#lib/components/ui/kbd/index.js';
 	import { Label } from '#lib/components/ui/label/index.js';
 	import { Spinner } from '#lib/components/ui/spinner/index.js';
-	import { LAZADA_REVIEWS_PER_STAR, linkIdentity, MARKETPLACES, queryContext, TYPICAL_SCAN_TIME } from '#lib/product.js';
+	import { LAZADA_REVIEWS_PER_STAR, linkIdentity, MARKETPLACES, queryContext, typicalScanTime } from '#lib/product.js';
 	import { auth } from '#lib/stores/auth.svelte.js';
 	import { catalog } from '#lib/stores/catalog.svelte.js';
 	import { library } from '#lib/stores/library.svelte.js';
@@ -174,10 +174,18 @@
 							<span class="text-muted-foreground text-xs tabular-nums">{scan.elapsed}</span>
 						</div>
 					</div>
-					<p class="text-muted-foreground text-sm">{scan.summary?.message || 'Preparing…'}</p>
+					{#if scan.summary?.needs_you}
+						<Alert class="tone-caution border-(--tone)/50 bg-(--tone-soft) *:[svg]:text-(--tone)">
+							<CircleAlertIcon />
+							<AlertTitle>This scan needs you</AlertTitle>
+							<AlertDescription>{scan.summary.message}</AlertDescription>
+						</Alert>
+					{:else}
+						<p class="text-muted-foreground text-sm">{scan.summary?.message || 'Preparing…'}</p>
+					{/if}
 					<ScanProgress {stage} {progress} />
 					<p class="text-muted-foreground text-xs">
-						A scan usually takes {TYPICAL_SCAN_TIME}. Keep this page open. The report opens by itself when it is ready.
+						A scan usually takes {typicalScanTime(scan.summary?.platform)}. Keep this page open. The report opens by itself when it is ready.
 					</p>
 				</div>
 			{/if}

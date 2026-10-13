@@ -6,6 +6,7 @@ import fs from 'node:fs';
 
 const base = process.env.BASE || 'http://localhost:5173';
 const out = 'tests/e2e/shots';
+const axeSource = fs.readFileSync('node_modules/axe-core/axe.min.js', 'utf8');
 fs.mkdirSync(out, { recursive: true });
 const SAVED = 'https://www.lazada.com.ph/products/pdp-i5246060610-s31099995054.html';
 const NEW_LINK = 'https://www.lazada.com.ph/products/pdp-i999999-s888888.html';
@@ -22,7 +23,11 @@ const { comments, ...freshCard } = fresh;
 
 const browser = await chromium.launch({ channel: 'chrome', headless: true });
 
-async function pretendScan(page, { limit = false } = {}) {
+// The server's own words when the scraper has opened a Chrome window for a check (webapp.LAZADA_CHECK_MESSAGE).
+const NEEDS_YOU =
+	'Lazada is asking for a login or a check. Complete it in the Chrome window that just opened. The scan continues by itself afterwards.';
+
+async function pretendScan(page, { limit = false, needsYou = false } = {}) {
 	let polls = 0;
 	let finished = false;
 	await page.route('**/api/search', (route) => {
@@ -40,7 +45,11 @@ async function pretendScan(page, { limit = false } = {}) {
 		const stage = polls < 2 ? 1 : polls < 3 ? 2 : 3;
 		const done = polls >= 4;
 		if (done) finished = true;
-		return route.fulfill({ json: { id: 'job1', state: done ? 'complete' : 'running', stage, stage_label: 'x', progress: done ? 100 : [18, 68, 92][stage - 1], message: done ? 'Analysis complete — 1 product(s) found.' : ['Collecting…', 'Analyzing English, Filipino, and Taglish review sentiment…', 'Preparing the report…'][stage - 1], platform: 'lazada', query: NEW_LINK, created_at: new Date().toISOString() } });
+		// With needsYou, the first answer is the scraper waiting for the person; the next one has moved on.
+		// With needsYou 'stays', it keeps waiting, so the screen can be looked at for as long as needed.
+		const waiting = needsYou === 'stays' || (needsYou && polls === 1);
+		if (needsYou === 'stays') polls = 1;
+		return route.fulfill({ json: { id: 'job1', state: done ? 'complete' : 'running', stage, stage_label: 'x', progress: done ? 100 : [18, 68, 92][stage - 1], message: waiting ? NEEDS_YOU : done ? 'Analysis complete — 1 product(s) found.' : ['Collecting…', 'Analyzing English, Filipino, and Taglish review sentiment…', 'Preparing the report…'][stage - 1], needs_you: waiting, platform: 'lazada', query: NEW_LINK, created_at: new Date().toISOString() } });
 	});
 	// Until the pretend scan finishes the real catalog is used; afterwards the new product is in it.
 	await page.route('**/api/products', (route) =>
@@ -63,7 +72,7 @@ async function pretendScan(page, { limit = false } = {}) {
 	await go.click();
 	await page.getByText('Lazada PH live scan').waitFor({ timeout: 10000 });
 	check(true, 'a running scan shows its panel');
-	check(await page.getByText('A scan of one product usually takes about 3 minutes.').isVisible(), 'the running scan says how long it usually takes');
+	check(await page.getByText('A scan of one product usually takes 1 to 2 minutes.').isVisible(), 'the running scan says how long a Lazada scan usually takes');
 	await page.screenshot({ path: `${out}/scan_running_analyze.png` });
 	check(await page.locator('#search-query').isDisabled(), 'the form is locked while a scan runs');
 	await page.waitForURL(/\/app\/report\?link=/, { timeout: 30000 });
@@ -99,7 +108,54 @@ async function pretendScan(page, { limit = false } = {}) {
 	await context.close();
 }
 
-// (c) A guest who is out of free scans is checked on the guest screen, in guest.mjs.
+// (c) The scraper opened a Chrome window for a login or a check: the panel says so in the server's words,
+//     a notice appears wherever the person is, and the panel goes back to normal when the scan moves on.
+{
+	const context = await browser.newContext({ viewport: { width: 1280, height: 900 } });
+	await signUp(context, base);
+	const page = await context.newPage();
+	await pretendScan(page, { needsYou: true });
+	await page.goto(base + '/app/analyze', { waitUntil: 'networkidle' });
+	await page.locator('#search-query').fill(NEW_LINK);
+	await page.getByRole('button', { name: /Check this Lazada PH product/ }).click();
+	const panel = page.locator('[role="status"]').filter({ hasText: 'Lazada PH live scan' });
+	await panel.getByText('This scan needs you').waitFor({ timeout: 10000 });
+	check(true, 'a scan waiting for the person says "This scan needs you"');
+	check(await panel.getByText(NEEDS_YOU).isVisible(), 'and what to do, in the server\'s words');
+	check(await page.locator('[data-sonner-toast]').filter({ hasText: 'Your scan needs you' }).first().isVisible(), 'a notice appears as well');
+	await page.screenshot({ path: `${out}/scan_needs_you.png` });
+	await panel.getByText('Analyzing English, Filipino, and Taglish review sentiment…').waitFor({ timeout: 10000 });
+	check(!(await panel.getByText('This scan needs you').isVisible()), 'the panel goes back to normal when the scan moves on');
+	await page.waitForURL(/\/app\/report\?link=/, { timeout: 30000 });
+	check(true, 'and the scan still ends at its report');
+	await context.close();
+}
+
+// (d) That notice is readable by everyone: axe finds nothing on it, in light and in dark, and Home says it too.
+for (const scheme of ['light', 'dark']) {
+	const context = await browser.newContext({ viewport: { width: 1280, height: 900 }, colorScheme: scheme });
+	await signUp(context, base);
+	const page = await context.newPage();
+	await pretendScan(page, { needsYou: 'stays' });
+	await page.goto(base + '/app/analyze', { waitUntil: 'networkidle' });
+	await page.locator('#search-query').fill(NEW_LINK);
+	await page.getByRole('button', { name: /Check this Lazada PH product/ }).click();
+	await page.getByText('This scan needs you').first().waitFor({ timeout: 10000 });
+	await page.waitForTimeout(1600);
+	await page.evaluate(axeSource);
+	const result = await page.evaluate(() => axe.run(document, { runOnly: { type: 'tag', values: ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa'] } }));
+	check(result.violations.length === 0, `accessibility: the "needs you" notice, ${scheme}${result.violations.length ? ' -> ' + result.violations.map((v) => v.id + ' ' + v.nodes[0].target.join(' ')).join('; ') : ''}`);
+	await page.screenshot({ path: `${out}/scan_needs_you_${scheme}.png` });
+	if (scheme === 'light') {
+		await page.getByRole('link', { name: 'Home' }).first().click();
+		await page.waitForURL(/\/app\/home/);
+		await page.getByRole('heading', { name: 'This scan needs you' }).waitFor({ timeout: 10000 });
+		check(await page.getByText(NEEDS_YOU).first().isVisible(), 'Home shows that the scan needs the person, with what to do');
+	}
+	await context.close();
+}
+
+// (e) A guest who is out of free scans is checked on the guest screen, in guest.mjs.
 
 await browser.close();
 console.log(failures ? `\n${failures} check(s) FAILED` : '\nAll checks passed.');

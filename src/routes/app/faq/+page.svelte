@@ -47,5 +47,5 @@
 
 <p class="text-muted-foreground text-sm">
 	Still stuck? Email the team at
-	<a class="text-foreground underline underline-offset-4" href="mailto:bmacalino_20ur2047@psu.edu.ph">bmacalino_20ur2047@psu.edu.ph</a>.
+	<a class="text-primary underline underline-offset-4" href="mailto:bmacalino_20ur2047@psu.edu.ph">bmacalino_20ur2047@psu.edu.ph</a>.
 </p>

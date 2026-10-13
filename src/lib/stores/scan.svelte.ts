@@ -250,6 +250,11 @@ class Scan {
 					return;
 				}
 
+				// The scraper opened a Chrome window for a login or a check. Say so once, wherever the person is.
+				if (job.needs_you && !this.summary?.needs_you) {
+					toast.warning('Your scan needs you', { description: job.message });
+					prefs.notify('Your DeFaketive scan needs you', job.message || 'Look for the Chrome window that just opened.');
+				}
 				this.#set(job);
 				setTimeout(tick, POLL_MS);
 			} catch (error) {

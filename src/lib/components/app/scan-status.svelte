@@ -20,6 +20,8 @@
 	const stopped = $derived(summary?.state === 'error');
 	const attention = $derived(summary?.state === 'attention');
 	const running = $derived(summary?.state === 'running');
+	// The scraper opened a Chrome window for a login or a check; the message says what to do in it.
+	const needsYou = $derived(running && Boolean(summary?.needs_you));
 	const progress = $derived(
 		Number.isFinite(Number(summary?.progress))
 			? Math.min(100, Math.max(0, Number(summary?.progress)))
@@ -32,7 +34,9 @@
 				? "This scan couldn't finish"
 				: attention
 					? 'Scan progress needs checking'
-					: ['Collecting product reviews', 'Reading the reviews', 'Preparing your report'][stage - 1]
+					: needsYou
+						? 'This scan needs you'
+						: ['Collecting product reviews', 'Reading the reviews', 'Preparing your report'][stage - 1]
 	);
 	const product = $derived(summary?.productLink ? catalog.lookup(summary.productLink) : undefined);
 	const action = $derived(
@@ -53,7 +57,7 @@
 		<div class="bg-muted text-foreground grid size-10 shrink-0 place-items-center rounded-full" aria-hidden="true">
 			{#if complete}<CircleCheckIcon class="pop size-5" />
 			{:else if stopped}<OctagonXIcon class="text-destructive size-5" />
-			{:else if attention}<TriangleAlertIcon class="size-5" />
+			{:else if attention || needsYou}<TriangleAlertIcon class="size-5" />
 			{:else if running}<Spinner class="size-5" />
 			{:else}<ScanSearchIcon class="size-5" />{/if}
 		</div>
@@ -64,7 +68,7 @@
 			</p>
 			<h2 id="home-scan-title" class="font-semibold" aria-live="polite">{title}</h2>
 			<p class="text-muted-foreground truncate text-sm">{product?.name || summary.query || 'Your product'}</p>
-			<p class="text-muted-foreground text-sm">
+			<p class="text-sm {needsYou ? 'text-foreground' : 'text-muted-foreground'}">
 				{complete
 					? "Your report is saved. Open it whenever you're ready."
 					: summary.message || 'You can keep browsing while we work.'}

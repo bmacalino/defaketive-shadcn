@@ -19,8 +19,14 @@ export const MARKETPLACES: Record<Marketplace, string> = {
 /** Lazada scans read this many written reviews from each star level (webapp.LAZADA_REVIEWS_PER_STAR). */
 export const LAZADA_REVIEWS_PER_STAR = 60;
 
-/** How long a live scan of one product takes. Timed on one real Lazada listing (11 Oct 2026): 195 seconds, link to report. */
-export const TYPICAL_SCAN_TIME = 'about 3 minutes';
+/**
+ * How long a live scan of one product takes, link to report. Lazada is read in the background from its review
+ * feed (timed 12 Oct 2026: 63 seconds for a listing with 145 reviews, 134 for one with 298). Shopee and Temu have
+ * not been timed: they keep the earlier figure, which came from one Lazada listing read off the page
+ * (11 Oct 2026: 195 seconds).
+ */
+const SCAN_TIMES: Partial<Record<Marketplace, string>> = { lazada: '1 to 2 minutes' };
+export const typicalScanTime = (platform?: string) => SCAN_TIMES[platform as Marketplace] ?? 'about 3 minutes';
 
 // --- The verdict ------------------------------------------------------------
 // A product without a view was checked by an older model. It is shown as "not
@@ -77,6 +83,14 @@ export function chipFor(product?: Product | null): { kind: ChipKind; label: stri
 		t === 'high' ? 'safety' : t === 'moderate' || counts(product).safety > 0 ? 'caution' : t === 'low' ? 'clear' : 'unknown';
 	return { kind, label: GROUP_NAMES[kind] };
 }
+
+/**
+ * True when a saved report was made by an earlier version of the checker. The report is still shown, as it
+ * was stored; the page says so and offers to check again. Unknown (an older server) counts as up to date,
+ * and a product that was never analysed already says "Not analyzed yet".
+ */
+export const behindChecker = (product?: Product | null) =>
+	product?.checked_with_current === false && view(product).state !== 'not_analyzed';
 
 /** True when a product is shown as Caution only because of a safety mention, not because of its verdict. */
 export const liftedBySafety = (product?: Product | null) =>
@@ -372,8 +386,8 @@ export function accuracyCopy(accuracy?: SafetyCheckAccuracy | null): string {
 
 /** In the order the server tests them. The wording matches dashboard_utils.VERDICT_HEADLINES. */
 export const VERDICT_GUIDE: { state: string; tone: string; label: string; meaning: string }[] = [
-	{ state: 'safety_warning', tone: 'high', label: 'Reviewers report safety problems', meaning: 'Serious or repeated reports of fire, smoke, shocks or overheating' },
-	{ state: 'possible_safety_issue', tone: 'moderate', label: 'Some reviewers mention safety concerns', meaning: 'Fewer or less severe safety reports' },
+	{ state: 'safety_warning', tone: 'high', label: 'Reviewers report safety problems', meaning: 'Two or more separate reports of fire, explosion or electric shock, or safety problems that are common in the reviews' },
+	{ state: 'possible_safety_issue', tone: 'moderate', label: 'Some reviewers mention safety concerns', meaning: 'One report of fire, explosion or electric shock, or a few less severe safety reports' },
 	{ state: 'possible_counterfeit_or_defect', tone: 'moderate', label: 'Reviewers report fakes or defects', meaning: 'More fake or breakage reports than is typical for the product type' },
 	{ state: 'reviews_may_be_unreliable', tone: 'unknown', label: 'These reviews may not be trustworthy', meaning: 'Many reviews look duplicated or generic' },
 	{ state: 'no_warning_signs', tone: 'low', label: 'No warning signs found', meaning: 'Enough reviews, and no problem reaches a warning level. This is not proof that a product is safe' },
@@ -388,7 +402,7 @@ export const groupOfTone = (value: string): ChipKind =>
 export const VERDICT_GROUPS: { kind: ChipKind; label: string; meaning: string }[] = [
 	{ kind: 'clear', label: GROUP_NAMES.clear, meaning: "Enough reviews, no safety mentions, and nothing else reaches a warning level. Not proof it's safe." },
 	{ kind: 'caution', label: GROUP_NAMES.caution, meaning: 'Fakes or defects reported more than usual, or a safety concern mentioned, even by one reviewer.' },
-	{ kind: 'safety', label: GROUP_NAMES.safety, meaning: 'Serious or repeated reports of fire, smoke, shocks or overheating.' },
+	{ kind: 'safety', label: GROUP_NAMES.safety, meaning: 'Two or more separate reports of fire, explosion or electric shock, or safety problems that are common in the reviews.' },
 	{ kind: 'unknown', label: GROUP_NAMES.unknown, meaning: 'Too few reviews, reviews that may not be trustworthy, or not analyzed yet.' }
 ];
 

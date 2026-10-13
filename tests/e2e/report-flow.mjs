@@ -56,6 +56,10 @@ const fake = [
 	// The safety review is stored last and also reports a fault; the name is as long as marketplaces write them.
 	mk(9, 'Buried 20000mAh fast charging with LED display and built-in cables, model PB-2026, black, original', 'possible_safety_issue', 'moderate', 'Some reviewers mention safety concerns', { safety: 1, defect: 2 }, [review(1, 'positive'), review(2, 'negative'), review(3, 'negative', 'defect'), both(review(4, 'negative', 'safety'))])
 ];
+// A saved report is shown as it was stored. The server says when the checker has changed since.
+fake.push({ ...mk(10, 'Older', 'no_warning_signs', 'low', 'No warning signs found', {}, [review(1, 'positive'), review(2, 'positive')]), checked_with_current: false });
+fake.push({ ...mk(11, 'Current', 'no_warning_signs', 'low', 'No warning signs found', {}, [review(1, 'positive'), review(2, 'positive')]), checked_with_current: true });
+fake[7].checked_with_current = false; // never analysed: it already says so, no second note
 const card = ({ comments, ...rest }) => rest;
 const cards = fake.map(card);
 // Only "Serious" has similar products to offer.
@@ -223,6 +227,27 @@ async function axe(page, label) {
 	await go(page, 7);
 	steps = await nextSteps(page);
 	check(steps.join(' | ') === 'What do these labels mean?', 'No verdict yet and no stored reviews: only the labels link, no dead button');
+	check((await page.locator('[data-behind-checker]').count()) === 0, 'a product that was never analysed gets no "earlier checker" note on top of "Not analyzed yet"');
+
+	// ---- A report made by an earlier version of the checker ----
+	await go(page, 10);
+	const older = await page.evaluate(() => {
+		const after = (a, b) => Boolean(a && b) && Boolean(a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING);
+		const note = document.querySelector('[data-behind-checker]');
+		return {
+			text: note?.textContent.replace(/\s+/g, ' ').trim() ?? '',
+			href: note?.querySelector('a')?.getAttribute('href') ?? '',
+			placed: after(document.querySelector('[aria-label="Verdict"]'), note) && after(note, document.querySelector('[aria-label="What to do next"]'))
+		};
+	});
+	check(older.text === 'This report was made with an earlier version of the checker. Check it again to bring it up to date.', `an older report says so (${older.text})`);
+	check(older.placed, 'the note sits under the verdict, before the next step');
+	check(older.href === `/app/analyze?q=${encodeURIComponent(fake[10].link)}`, `"Check it again" leads to the check page with the link kept (${older.href})`);
+	await axe(page, 'report made by an earlier checker');
+	await go(page, 11);
+	check((await page.locator('[data-behind-checker]').count()) === 0, 'a report from the current checker has no note');
+	await go(page, 5);
+	check((await page.locator('[data-behind-checker]').count()) === 0, 'a server that does not say (the plain original app) counts as up to date');
 	check(errors.length === 0, `no browser errors${errors.length ? ': ' + errors[0] : ''}`);
 	await context.close();
 }

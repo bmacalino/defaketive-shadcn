@@ -14,7 +14,7 @@
 	import ScanProgress from '#lib/components/app/scan-progress.svelte';
 	import { RadioGroup, RadioGroupItem } from '#lib/components/ui/radio-group/index.js';
 	import { Spinner } from '#lib/components/ui/spinner/index.js';
-	import { LAZADA_REVIEWS_PER_STAR, linkIdentity, MARKETPLACES, queryContext, TYPICAL_SCAN_TIME } from '#lib/product.js';
+	import { LAZADA_REVIEWS_PER_STAR, linkIdentity, MARKETPLACES, queryContext, typicalScanTime } from '#lib/product.js';
 	import { catalog } from '#lib/stores/catalog.svelte.js';
 	import { library } from '#lib/stores/library.svelte.js';
 	import { scan } from '#lib/stores/scan.svelte.js';
@@ -215,9 +215,17 @@
 								<span class="text-muted-foreground text-xs tabular-nums">{scan.elapsed}</span>
 							</div>
 						</div>
-						<p class="text-muted-foreground text-sm">{scan.summary?.message || 'Preparing…'}</p>
+						{#if scan.summary?.needs_you}
+							<Alert class="tone-caution border-(--tone)/50 bg-(--tone-soft) *:[svg]:text-(--tone)">
+								<CircleAlertIcon />
+								<AlertTitle>This scan needs you</AlertTitle>
+								<AlertDescription>{scan.summary.message}</AlertDescription>
+							</Alert>
+						{:else}
+							<p class="text-muted-foreground text-sm">{scan.summary?.message || 'Preparing…'}</p>
+						{/if}
 						<ScanProgress {stage} {progress} />
-						{#if oneProduct}<p class="text-muted-foreground text-xs">A scan of one product usually takes {TYPICAL_SCAN_TIME}.</p>{/if}
+						{#if oneProduct}<p class="text-muted-foreground text-xs">A scan of one product usually takes {typicalScanTime(scan.summary?.platform)}.</p>{/if}
 					</div>
 				{/if}
 
@@ -240,8 +248,11 @@
 				</p>
 				<h3 class="text-foreground font-medium">Already checked this product?</h3>
 				<p>Open its report straight away, or check it again for new reviews.</p>
-				<a class="tap text-foreground inline-flex items-center gap-1 font-medium underline underline-offset-4" href="/app/history">Find a saved report <ArrowRightIcon class="size-4" /></a>
-				<p class="text-xs">Some marketplaces may ask you to log in or complete a CAPTCHA during collection.</p>
+				<a class="tap text-primary inline-flex items-center gap-1 font-medium underline underline-offset-4" href="/app/history">Find a saved report <ArrowRightIcon class="size-4" /></a>
+				<p class="text-xs">
+					Some marketplaces may ask you to log in or complete a CAPTCHA during collection. If that happens, a Chrome
+					window opens for it and this page tells you.
+				</p>
 			</CardContent>
 		</Card>
 	</aside>

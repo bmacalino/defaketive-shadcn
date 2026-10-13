@@ -113,7 +113,7 @@ async function axe(page, label) {
 	await page.getByRole('button', { name: /Check this Lazada PH product/ }).click();
 	await page.getByText('Lazada PH live scan').waitFor({ timeout: 10000 });
 	check((await inApp(page)) === 0 && page.url().endsWith('/scan'), 'the scan runs on the guest screen');
-	check(await page.getByText('A scan usually takes about 3 minutes.').isVisible(), 'the running scan says how long it usually takes');
+	check(await page.getByText('A scan usually takes 1 to 2 minutes.').isVisible(), 'the running scan says how long a Lazada scan usually takes');
 	await page.screenshot({ path: 'tests/e2e/shots/guest_running.png' });
 	await page.waitForURL(/\/scan\/report\?link=/, { timeout: 40000 });
 	await page.getByRole('heading', { level: 1, name: /Guest scanned this/ }).waitFor({ timeout: 15000 });
