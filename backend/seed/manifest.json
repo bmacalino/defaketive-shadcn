@@ -3,6 +3,6 @@
  "products": 182,
  "reviews": 21878,
  "checker_version": "defaketive-hazard-lexicon-0.3.0+rules0.4g1n1f1f2f3f4f5f6f7+hazard-learned-6.0.0-safety-defect-5189e581+r1b+c2r2+defaketive-xlmr-firecs-v1-onnx-int8-e04da4c2+reference-baselines-2.0.0+hazard-parameters-1.1.0",
- "made_at": "2026-10-14T16:05:40+00:00",
- "sha256": "66dff853ef315db1df00b6ef7af63242ad760dde5f1d2256619b95e672fd014a"
+ "made_at": "2026-10-14T16:13:07+00:00",
+ "sha256": "62fe8c6ecdd004fcd3ade85e505a714a3717b18f881b52edee2cbf94d3a791ec"
 }

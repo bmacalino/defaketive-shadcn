@@ -7,7 +7,7 @@ How. Every saved product in the original app's defaketive.db is read again with 
 new PC does not show each report as "made with an earlier version of the checker". Reading takes about a fifth of a
 second a review (70 to 90 minutes for 180 products); each product's result is kept in backups/starter-prepared/
 (keyed by the checker version and the stored report), so a second run only reads what changed. Then the reviewer's
-name and the seller's reply (which can name the buyer) are taken out of every review; the rating, date, text,
+name (replaced by "Reviewer 1", "Reviewer 2"...) and the seller's reply (which can name the buyer) are taken out; the rating, date, text,
 variation and the checker's reading stay. Accounts, history and wishlists are never included.
 
 The database is opened read only. Run it with the original app's Python, from this folder:
@@ -36,7 +36,8 @@ from dashboard_utils import sentiment_model_version  # noqa: E402
 
 PREPARED = HERE / "backups" / "starter-prepared"
 SEED = HERE / "backend" / "seed" / "saved_products.json.gz"
-# Taken out of every review: who wrote it, and the seller's reply, which can name the buyer.
+# Taken out of every review: who wrote it (a stand-in name takes its place), and the seller's reply, which can
+# name the buyer.
 PERSONAL_REVIEW_FIELDS = ("author", "seller_respond")
 
 
@@ -62,11 +63,19 @@ def read_again(product: dict[str, Any], checker: str) -> dict[str, Any]:
 
 
 def without_names(product: dict[str, Any]) -> dict[str, Any]:
+    """The product with its reviewers' names and the sellers' replies taken out.
+
+    Each review gets a stand-in name, "Reviewer 1", "Reviewer 2"..., numbered within its product. The database names a
+    stored review by its listing, reviewer, date and text, so with no name at all two reviewers who wrote "Good" on
+    the same day became one row (90 of 21,878 on 14 Oct 2026). The screens never show the name.
+    """
     cleaned = dict(product)
     cleaned["comments"] = [
-        {key: value for key, value in review.items() if key not in PERSONAL_REVIEW_FIELDS}
-        for review in product.get("comments") or []
-        if isinstance(review, dict)
+        {
+            **{key: value for key, value in review.items() if key not in PERSONAL_REVIEW_FIELDS},
+            "author": f"Reviewer {number}",
+        }
+        for number, review in enumerate((r for r in product.get("comments") or [] if isinstance(r, dict)), start=1)
     ]
     return cleaned
 
@@ -88,11 +97,14 @@ def main() -> int:
         if number % 10 == 0 or number == len(rows):
             print(f"  {number}/{len(rows)} read ({round(time.time() - started)} s)", flush=True)
     text = json.dumps(seed, ensure_ascii=False, sort_keys=True)
-    if any(f'"{field}"' in text for field in PERSONAL_REVIEW_FIELDS):
-        # Only the review-level fields are removed; the words may still occur as parts of other text.
-        leftovers = sum(1 for item in seed for review in item["product"]["comments"] if set(review) & set(PERSONAL_REVIEW_FIELDS))
-        if leftovers:
-            sys.exit(f"{leftovers} reviews still carry a personal field; nothing was written.")
+    leftovers = sum(
+        1
+        for item in seed
+        for review in item["product"]["comments"]
+        if "seller_respond" in review or not str(review.get("author", "")).startswith("Reviewer ")
+    )
+    if leftovers:
+        sys.exit(f"{leftovers} reviews still carry a name or a seller reply; nothing was written.")
     SEED.parent.mkdir(parents=True, exist_ok=True)
     SEED.write_bytes(gzip.compress(text.encode("utf-8"), compresslevel=9, mtime=0))
     (SEED.parent / "manifest.json").write_bytes(
