@@ -126,7 +126,13 @@ const open = async (opts = {}) => {
 	const { context, page, errors } = await open({ noSaved: true });
 	await page.goto(base + '/app/products', { waitUntil: 'networkidle' });
 	await page.waitForTimeout(1500);
-	check(await page.getByText(new RegExp(`^${session.count} products? shown`)).isVisible(), `without server.py, Products falls back to the ${session.count} session product(s)`);
+	// A fresh PC has no scan file, so a fresh session holds nothing and Products shows its empty state.
+	check(
+		session.count
+			? await page.getByText(new RegExp(`^${session.count} products? shown`)).isVisible()
+			: await page.getByText('No products checked yet').isVisible(),
+		`without server.py, Products falls back to the ${session.count} session product(s)`
+	);
 	await page.goto(`${base}/app/report?link=${encodeURIComponent(helmet.link)}`, { waitUntil: 'networkidle' });
 	await page.waitForTimeout(1000);
 	check(await page.getByText("We don't have a report for this product yet").isVisible(), 'without server.py, a database-only product says there is no report for it yet');
