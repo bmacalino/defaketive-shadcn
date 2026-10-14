@@ -6,13 +6,17 @@ rem Starts DeFaketive for use or for a demo:
 rem   server.py (the original DeFaketive app plus a few read-only database routes) on port 5000,
 rem   and the finished build of this shadcn version on port 5173.
 rem To change the code and see it update as you type, use dev.cmd instead.
+rem The original app: DEFAKETIVE_ORIGINAL, else its own folder beside this one (the developer's PC, with the real
+rem database), else backend\, the copy this repo carries so it runs on any PC (set up by setup.cmd).
 set "OLD=%~dp0..\Capstone-Version-Control-Version-1.1"
+if not exist "%OLD%\webapp.py" set "OLD=%~dp0backend"
+if defined DEFAKETIVE_ORIGINAL set "OLD=%DEFAKETIVE_ORIGINAL%"
 set "PY=%OLD%\.venv\Scripts\python.exe"
 
 if not exist "%PY%" (
-    echo The original app's virtual environment was not found in:
+    echo The app's Python environment was not found in:
     echo   %OLD%
-    echo Set it up first, see the README in that folder.
+    echo Run setup.cmd first ^(once per PC^), then start again.
     pause
     exit /b 1
 )

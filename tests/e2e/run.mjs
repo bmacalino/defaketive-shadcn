@@ -14,7 +14,10 @@ import { fileURLToPath } from 'node:url';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(here, '../..');
-const original = process.env.DEFAKETIVE_ORIGINAL || path.resolve(root, '../Capstone-Version-Control-Version-1.1');
+// The original app: DEFAKETIVE_ORIGINAL, else its folder beside this project, else backend/ (this repo's own copy).
+const beside = path.resolve(root, '../Capstone-Version-Control-Version-1.1');
+const original =
+	process.env.DEFAKETIVE_ORIGINAL || (fs.existsSync(path.join(beside, 'webapp.py')) ? beside : path.join(root, 'backend'));
 const python = path.join(original, '.venv', 'Scripts', 'python.exe');
 const vite = path.join(root, 'node_modules', 'vite', 'bin', 'vite.js');
 const scratch = path.join(root, 'tests', '.tmp');

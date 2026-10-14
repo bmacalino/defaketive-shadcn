@@ -1,0 +1,12 @@
+undetected-chromedriver
+selenium
+tqdm
+Flask>=3.0,<4
+pandas>=2.2,<3
+openpyxl>=3.1,<4
+nltk>=3.9,<4
+setuptools>=70
+scikit-learn==1.9.0
+joblib==1.5.3
+onnxruntime>=1.20,<2
+tokenizers>=0.20,<1

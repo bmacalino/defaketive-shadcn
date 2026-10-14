@@ -32,7 +32,19 @@ from typing import Any
 from urllib.parse import parse_qs, urlsplit
 
 HERE = Path(__file__).resolve().parent
-ORIGINAL = Path(os.environ.get("DEFAKETIVE_ORIGINAL") or HERE.parent / "Capstone-Version-Control-Version-1.1")
+
+
+def _original_app() -> Path:
+    """Where the original app is: DEFAKETIVE_ORIGINAL, else its own folder beside this project (the developer's PC,
+    with the real database), else backend/, the copy this repo carries so it runs on another PC."""
+    named = os.environ.get("DEFAKETIVE_ORIGINAL")
+    if named:
+        return Path(named)
+    beside = HERE.parent / "Capstone-Version-Control-Version-1.1"
+    return beside if (beside / "webapp.py").is_file() else HERE / "backend"
+
+
+ORIGINAL = _original_app()
 if not (ORIGINAL / "webapp.py").exists():
     sys.exit(f"The original DeFaketive app was not found at {ORIGINAL}. Set DEFAKETIVE_ORIGINAL to its folder.")
 
@@ -49,7 +61,7 @@ from flask import Blueprint, jsonify, request  # noqa: E402
 from saved_pool import SavedPool  # noqa: E402  (beside this file)
 
 # These helpers are private to the original module. Fail with a clear message if they ever change.
-for name in ("app", "_products", "_cards", "_card", "_accounts_db", "_merged_catalog"):
+for name in ("app", "_products", "_cards", "_card", "_accounts_db", "_merged_catalog", "_prepare_saved"):
     if not hasattr(webapp, name):
         sys.exit(f"webapp.{name} is missing: server.py needs updating to match the original app.")
 
@@ -70,6 +82,12 @@ def _merged_catalog() -> list[dict[str, Any]]:
 
 
 webapp._merged_catalog = _merged_catalog
+
+
+# With no scan file in its folder (a fresh copy on another PC), the original app starts every new browser session
+# with its own deep copy of every saved product: seconds, and about 150 MB, per session. Here the saved products are
+# served from the pool for every list and report, so a session starts with only what it scans itself.
+webapp._prepare_saved = lambda: []
 
 
 def _identity(link: Any) -> tuple[str, ...]:

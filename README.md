@@ -8,6 +8,37 @@ This app only draws the screens. Everything real still happens in the original F
 scan limits, live scans, the review checker, and the exact wording of every verdict. The new app asks it
 for data through `/api`, so both always agree.
 
+## Run it on another PC
+
+This repo holds everything the app needs: the screens, and in `backend/` a copy of the original app's server, review
+checker, review model and Lazada scanner, plus your saved reports as a starter set (reviewer names removed).
+
+You need, once per PC:
+
+1. **Windows**, with **Google Chrome**.
+2. **Python 3.11** from <https://www.python.org/downloads/>. Tick **"Add python.exe to PATH"** in the installer.
+3. **Node.js LTS** from <https://nodejs.org>.
+
+Then:
+
+1. Download this repo (green **Code** button, **Download ZIP**, and unzip it; or `git clone`).
+2. Double-click **`setup.cmd`**. The first time it takes a few minutes and needs the internet: it installs the Python
+   and app packages, fetches a small word list, and loads the starter reports (about 180 products).
+3. Double-click **`start.cmd`**. The app opens in the browser at <http://localhost:5173>. Keep its windows open.
+
+The first Lazada check on a new PC opens a Chrome window: log in to Lazada there once, and later checks run with no
+window. If Lazada asks for a check (a puzzle), the window comes back and the app says "This scan needs you".
+
+What is not included, on purpose: accounts, history and wishlists (each PC starts with none), your Lazada login, and
+the research files (they stay in the original app's repo). The starter reports have no reviewer names or seller
+replies.
+
+For whoever keeps this repo up to date: `backend/` is a copy, made by `scripts/sync_backend.py` from the original
+app beside this folder; change the original app, then run that script again. `scripts/make_starter_data.py` remakes
+the starter reports from the original app's database (reading every report again with the current checker, about
+70 to 90 minutes). On the developer's PC, with the original app beside this folder, `start.cmd` keeps using the
+original app and its real database; `backend/` is only used where the original app is not there.
+
 ## How it is connected
 
 ```

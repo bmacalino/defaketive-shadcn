@@ -32,3 +32,13 @@ __pycache__/
 # Tests: screenshots and the scratch accounts database
 /tests/e2e/shots
 /tests/.tmp
+
+# backend/: what the running app creates. Databases, accounts and session cookies hold personal data; never commit them.
+/backend/.venv/
+/backend/instance/
+/backend/defaketive.db*
+/backend/logs/
+/backend/debug/
+/backend/cookies_*.dat
+/backend/*_ph_*.json
+/backend/.browser_profiles/

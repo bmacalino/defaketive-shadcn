@@ -7,3 +7,10 @@
 *.jpg binary
 *.ico binary
 *.woff2 binary
+
+# backend/ is a byte-for-byte copy of the original app (scripts/sync_backend.py). Git must not change its line
+# endings: the review model checks its own files' SHA-256, and the checker's version is worked out from its files.
+backend/** -text
+*.gz binary
+*.onnx binary
+*.joblib binary

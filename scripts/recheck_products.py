@@ -33,7 +33,19 @@ from pathlib import Path
 from typing import Any
 
 HERE = Path(__file__).resolve().parent.parent
-ORIGINAL = Path(os.environ.get("DEFAKETIVE_ORIGINAL") or HERE.parent / "Capstone-Version-Control-Version-1.1")
+
+
+def _original_app() -> Path:
+    """Where the original app is: DEFAKETIVE_ORIGINAL, else its own folder beside this project (the developer's PC,
+    with the real database), else backend/, the copy this repo carries so it runs on another PC."""
+    named = os.environ.get("DEFAKETIVE_ORIGINAL")
+    if named:
+        return Path(named)
+    beside = HERE.parent / "Capstone-Version-Control-Version-1.1"
+    return beside if (beside / "webapp.py").is_file() else HERE / "backend"
+
+
+ORIGINAL = _original_app()
 if not (ORIGINAL / "webapp.py").exists():
     sys.exit(f"The original DeFaketive app was not found at {ORIGINAL}. Set DEFAKETIVE_ORIGINAL to its folder.")
 
