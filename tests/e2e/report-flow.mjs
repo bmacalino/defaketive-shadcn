@@ -37,7 +37,7 @@ const badge = (category, mentions) => ({
 	evidence: mentions && TEXT[category] ? [{ text: TEXT[category], rating: 1, highlights: [SPAN[category]] }] : []
 });
 const mk = (i, name, state, tone, headline, counts, comments) => ({
-	name: `${name} power bank`, link: `https://shopee.ph/rf-${i}`, price: '₱499.00', rating: 4.2, platform: 'shopee', reviews_collected: comments.length, img: '',
+	name: `${name} power bank`, link: `https://www.lazada.com.ph/products/rf-${i}.html`, price: '₱499.00', rating: 4.2, platform: 'lazada', reviews_collected: comments.length, img: '',
 	analysis_date: new Date(Date.now() - i * 3600000).toISOString(), comments,
 	badge_view: state === 'not_analyzed'
 		? { available: false, state, tone: 'unknown', headline: 'Not analyzed yet', detail: 'This product has not been checked with the current review model.', reviews_analyzed: 0, counts: { safety: 0, counterfeit: 0, defect: 0 }, badges: [], labels: LABELS }
@@ -60,6 +60,8 @@ const fake = [
 fake.push({ ...mk(10, 'Older', 'no_warning_signs', 'low', 'No warning signs found', {}, [review(1, 'positive'), review(2, 'positive')]), checked_with_current: false });
 fake.push({ ...mk(11, 'Current', 'no_warning_signs', 'low', 'No warning signs found', {}, [review(1, 'positive'), review(2, 'positive')]), checked_with_current: true });
 fake[7].checked_with_current = false; // never analysed: it already says so, no second note
+// A report saved from Temu before the app became Lazada-only (14 Oct 2026): it opens, but is never checked again.
+fake.push({ ...mk(12, 'Older Temu', 'no_warning_signs', 'low', 'No warning signs found', {}, [review(1, 'positive'), review(2, 'positive')]), link: 'https://www.temu.com/goods.html?goods_id=601100000000012', platform: 'temu', checked_with_current: false });
 const card = ({ comments, ...rest }) => rest;
 const cards = fake.map(card);
 // Only "Serious" has similar products to offer.
@@ -121,7 +123,7 @@ async function axe(page, label) {
 		};
 	});
 	check(top.order && top.oneCard, 'the verdict comes right after the name; the next step and then the numbers follow, in one card');
-	check(top.beside.includes('4.2/5') && top.beside.includes('Shopee PH · ₱499.00') && !top.beside.includes('out of 5'), `beside the name: the rating once, the marketplace and the price (${top.beside.slice(-40)})`);
+	check(top.beside.includes('4.2/5') && top.beside.includes('Lazada PH · ₱499.00') && !top.beside.includes('out of 5'), `beside the name: the rating once, the marketplace and the price (${top.beside.slice(-40)})`);
 	check(top.terms.join(' | ') === 'Positive reviews | Negative reviews | Category | Report date', `under the verdict: ${top.terms.join(' | ')}`);
 
 	// ---- The kinds of problem, most serious first, in two groups ----
@@ -244,6 +246,12 @@ async function axe(page, label) {
 	check(older.placed, 'the note sits under the verdict, before the next step');
 	check(older.href === `/app/analyze?q=${encodeURIComponent(fake[10].link)}`, `"Check it again" leads to the check page with the link kept (${older.href})`);
 	await axe(page, 'report made by an earlier checker');
+	await go(page, 12);
+	const temu = await page.evaluate(() => {
+		const note = document.querySelector('[data-behind-checker]');
+		return { text: note?.textContent.replace(/\s+/g, ' ').trim() ?? '', links: note?.querySelectorAll('a').length ?? -1 };
+	});
+	check(temu.text === "This report was made with an earlier version of the checker. It can't be checked again: DeFaketive now checks Lazada PH products only." && temu.links === 0, `an older Temu report opens but offers no new check (${temu.text})`);
 	await go(page, 11);
 	check((await page.locator('[data-behind-checker]').count()) === 0, 'a report from the current checker has no note');
 	await go(page, 5);

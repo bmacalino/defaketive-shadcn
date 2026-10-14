@@ -12,9 +12,16 @@
 	import { InputGroup, InputGroupAddon, InputGroupInput } from '#lib/components/ui/input-group/index.js';
 	import { Label } from '#lib/components/ui/label/index.js';
 	import ScanProgress from '#lib/components/app/scan-progress.svelte';
-	import { RadioGroup, RadioGroupItem } from '#lib/components/ui/radio-group/index.js';
 	import { Spinner } from '#lib/components/ui/spinner/index.js';
-	import { LAZADA_REVIEWS_PER_STAR, linkIdentity, MARKETPLACES, queryContext, typicalScanTime } from '#lib/product.js';
+	import {
+		LAZADA_ONLY,
+		LAZADA_REVIEWS_PER_STAR,
+		linkIdentity,
+		MARKETPLACES,
+		queryContext,
+		scannable,
+		typicalScanTime
+	} from '#lib/product.js';
 	import { catalog } from '#lib/stores/catalog.svelte.js';
 	import { library } from '#lib/stores/library.svelte.js';
 	import { scan } from '#lib/stores/scan.svelte.js';
@@ -22,7 +29,6 @@
 	import type { Marketplace } from '#lib/types.js';
 
 	let query = $state('');
-	let marketplace = $state<Marketplace>('shopee');
 	// The usual limits for a fresh scan: up to 6 products when searching by name, up to 100 reviews each
 	// (Lazada reads up to 60 from each star level instead).
 	const productCount = 6;
@@ -42,27 +48,29 @@
 	const context = $derived(queryContext(query));
 	const hasQuery = $derived(query.trim() !== '');
 	const unsupported = $derived(context.isUrl && !context.platform);
-	const chosen = $derived<Marketplace>(context.platform ?? marketplace);
+	// A Shopee or Temu link: a report saved from it still opens, but it is never checked (Lazada PH only).
+	const otherMarket = $derived(Boolean(context.platform) && !scannable(context.platform));
+	const chosen = $derived<Marketplace>(context.platform ?? 'lazada');
 	const lazada = $derived(chosen === 'lazada');
 	const match = $derived(
 		context.platform
 			? (catalog.lookup(query) ?? library.mine.find((product) => linkIdentity(product.link) === linkIdentity(query)))
 			: null
 	);
-	const disabled = $derived(scan.busy || !hasQuery || unsupported);
+	const disabled = $derived(scan.busy || !hasQuery || unsupported || (otherMarket && !match));
 
 	// What the main button does depends on what was pasted.
 	const primary = $derived(
 		context.platform && match
 			? { intent: 'saved', label: 'Open report' }
-			: context.platform
+			: context.platform && !otherMarket
 				? { intent: 'live', label: `Check this ${MARKETPLACES[context.platform]} product` }
-				: hasQuery
+				: hasQuery && !context.isUrl
 					? { intent: 'saved', label: 'Search saved reports' }
 					: { intent: 'saved', label: 'Check' }
 	);
 	const fresh = $derived(
-		context.platform && match
+		context.platform && match && !otherMarket
 			? 'Check again for new reviews'
 			: !context.platform && hasQuery && !unsupported
 				? 'Collect fresh reviews'
@@ -76,7 +84,7 @@
 	);
 	const products = $derived(context.platform ? 1 : productCount);
 	const summary = $derived(
-		hasQuery && !unsupported
+		hasQuery && !unsupported && !otherMarket
 			? `Fresh collection settings: ${MARKETPLACES[chosen]} · up to ${products} product${products === 1 ? '' : 's'} · ${plan}`
 			: ''
 	);
@@ -127,7 +135,7 @@
 		<CardHeader>
 			<CardTitle>Paste a product link</CardTitle>
 			<CardDescription>
-				From Shopee PH, Lazada PH or Temu. You can also search saved reports by name.
+				From Lazada PH. You can also search saved reports by name.
 			</CardDescription>
 		</CardHeader>
 		<CardContent>
@@ -148,11 +156,22 @@
 						/>
 						<InputGroupAddon align="inline-end" class="max-md:hidden"><Kbd title="Press / to jump here">/</Kbd></InputGroupAddon>
 					</InputGroup>
-					<p class="text-muted-foreground text-xs">Shopee PH · Lazada PH · Temu</p>
+					<p class="text-muted-foreground text-xs">Lazada PH product links</p>
 					{#if context.isUrl}
-						<p class="flex items-center gap-1.5 text-sm {unsupported ? 'text-destructive' : 'text-success'}" aria-live="polite">
+						<p
+							class="flex items-center gap-1.5 text-sm {unsupported || (otherMarket && !match)
+								? 'text-destructive'
+								: otherMarket
+									? 'text-muted-foreground'
+									: 'text-success'}"
+							aria-live="polite"
+						>
 							{#if unsupported}
-								<CircleAlertIcon class="size-4" /> This website is not supported. Paste a Shopee PH, Lazada PH, or Temu product link.
+								<CircleAlertIcon class="size-4" /> This website is not supported. Paste a Lazada PH product link.
+							{:else if otherMarket}
+								<CircleAlertIcon class="size-4 shrink-0" />
+								{LAZADA_ONLY}
+								{match ? 'Its saved report can still be opened.' : `This ${MARKETPLACES[context.platform!]} link can't be checked.`}
 							{:else}
 								<CheckIcon class="size-4" /> {MARKETPLACES[context.platform!]} product link detected.
 							{/if}
@@ -164,24 +183,6 @@
 						</p>
 					{/if}
 				</div>
-
-				{#if hasQuery && !context.isUrl}
-					<fieldset class="grid gap-2" disabled={scan.busy}>
-						<legend class="mb-2 text-sm font-medium">Choose a marketplace</legend>
-						<RadioGroup bind:value={marketplace} class="flex flex-wrap gap-2">
-							{#each Object.entries(MARKETPLACES) as [key, label] (key)}
-								<!-- The whole box is the label, so pressing anywhere in it picks the marketplace. -->
-								<Label
-									for="market-{key}"
-									class="has-[[data-state=checked]]:border-primary flex min-h-10 cursor-pointer items-center gap-2 rounded-lg border px-3 py-2 font-normal"
-								>
-									<RadioGroupItem value={key} id="market-{key}" />
-									{label.replace(' PH', '')}
-								</Label>
-							{/each}
-						</RadioGroup>
-					</fieldset>
-				{/if}
 
 				<p id="scan-summary" class="text-muted-foreground text-xs" hidden={!summary}>{summary}</p>
 

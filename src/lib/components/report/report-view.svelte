@@ -42,6 +42,7 @@
 		reviewTags,
 		safeImage,
 		safeLink,
+		scannable,
 		sentimentLabel,
 		sentimentPercentages,
 		summaryHeadline,
@@ -117,8 +118,9 @@
 			});
 	});
 
-	// A product we have no report for can be checked right away, with its link carried over.
-	const checkable = $derived(Boolean(queryContext(link).platform));
+	// A product we have no report for can be checked right away, with its link carried over. Only a Lazada PH
+	// product can be checked: a report saved from Shopee or Temu still opens, but is never checked again.
+	const checkable = $derived(scannable(queryContext(link).platform));
 	const checkHref = $derived(`${guest ? '/scan' : '/app/analyze'}?q=${encodeURIComponent(link)}`);
 
 	// --- What the report shows ------------------------------------------------
@@ -336,7 +338,7 @@
 		art="error"
 		title="This link can't be opened"
 		description={failure === 'missing'
-			? 'We have no report for it, and it is not a Shopee PH, Lazada PH or Temu product link.'
+			? 'We have no report for it, and it is not a Lazada PH product link.'
 			: 'This product has no valid listing link.'}
 	>
 		{#snippet actions()}
@@ -398,8 +400,12 @@
 				<!-- A saved report does not change when the checker does. Say so instead of showing it as today's. -->
 				<p class="bg-muted text-muted-foreground rounded-lg px-3 py-2 text-sm" data-behind-checker>
 					This report was made with an earlier version of the checker.
-					<a class="tap text-primary font-medium underline underline-offset-4" href={checkHref}>Check it again</a>
-					to bring it up to date.
+					{#if checkable}
+						<a class="tap text-primary font-medium underline underline-offset-4" href={checkHref}>Check it again</a>
+						to bring it up to date.
+					{:else}
+						It can't be checked again: DeFaketive now checks Lazada PH products only.
+					{/if}
 				</p>
 			{/if}
 			<!-- One thing to do next, chosen by the verdict. -->

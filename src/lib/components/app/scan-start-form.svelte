@@ -8,7 +8,7 @@
 	import { Button } from '#lib/components/ui/button/index.js';
 	import { InputGroup, InputGroupAddon, InputGroupInput } from '#lib/components/ui/input-group/index.js';
 	import { guestReportHref } from '#lib/nav.js';
-	import { queryContext } from '#lib/product.js';
+	import { queryContext, scannable } from '#lib/product.js';
 	import { auth } from '#lib/stores/auth.svelte.js';
 	import { catalog } from '#lib/stores/catalog.svelte.js';
 	import { prefs } from '#lib/stores/prefs.svelte.js';
@@ -17,7 +17,7 @@
 	let {
 		autofill = false,
 		size = 'lg',
-		placeholder = 'Paste a Shopee, Lazada or Temu PH link...',
+		placeholder = 'Paste a Lazada PH link...',
 		target = '/app/analyze'
 	}: { autofill?: boolean; size?: 'default' | 'lg'; placeholder?: string; target?: string } = $props();
 
@@ -39,7 +39,8 @@
 		} catch {
 			return;
 		}
-		if (!text || text.length > 2000 || text === lastClipboard || !queryContext(text).platform || value.trim()) return;
+		// Only a link DeFaketive can check (Lazada PH) is put in the bar.
+		if (!text || text.length > 2000 || text === lastClipboard || !scannable(queryContext(text).platform) || value.trim()) return;
 		lastClipboard = text;
 		value = text;
 		toast('The product link you copied is in the box. Press Check to continue.');

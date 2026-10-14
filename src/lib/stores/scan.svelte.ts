@@ -3,7 +3,7 @@ import { page } from '$app/state';
 import { toast } from 'svelte-sonner';
 import { api, ApiError, json } from '#lib/api.js';
 import { reportHrefFor } from '#lib/nav.js';
-import { linkIdentity, queryContext, safeLink, searchProducts, view } from '#lib/product.js';
+import { LAZADA_ONLY, linkIdentity, MARKETPLACES, queryContext, safeLink, scannable, searchProducts, view } from '#lib/product.js';
 import type { Job, Marketplace } from '#lib/types.js';
 import { auth } from './auth.svelte.js';
 import { catalog } from './catalog.svelte.js';
@@ -120,7 +120,7 @@ class Scan {
 		if (context.isUrl && !context.platform) {
 			this.feedback = {
 				title: 'Unsupported product link',
-				message: 'Only Shopee PH, Lazada PH, and Temu product links are supported.',
+				message: `${LAZADA_ONLY} Paste a link to a Lazada PH product.`,
 				kind: 'error'
 			};
 			return;
@@ -130,6 +130,15 @@ class Scan {
 		if (!options.live && context.platform) {
 			const saved = catalog.lookup(query) ?? library.mine.find((p) => linkIdentity(p.link) === linkIdentity(query));
 			if (saved) return goto(reportHref(saved.link));
+		}
+		// A Shopee or Temu link opens a report saved from it (above), but is never scanned.
+		if (context.platform && !scannable(context.platform)) {
+			this.feedback = {
+				title: 'Lazada PH only',
+				message: `${LAZADA_ONLY} This ${MARKETPLACES[context.platform]} link can't be checked.`,
+				kind: 'warning'
+			};
+			return;
 		}
 		if (!options.live && !context.isUrl) {
 			const matches = searchProducts(catalog.browse, query);

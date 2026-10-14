@@ -48,6 +48,10 @@ browser  ->  Vite (localhost:5173)  --/api-->  server.py (127.0.0.1:5000)  ->  d
   empty. (The original app mixes this browser's session catalog into every history; this version does not.)
 - **Without `server.py`** (the plain original app on port 5000) everything still works from the session catalog;
   Products just lists fewer products and a database-only report says it could not be opened.
+- **Lazada PH only** (the owner's decision, 14 Oct 2026). Every page says Lazada PH, and only a Lazada PH link can be
+  checked (`SCAN_MARKETPLACES` and `scannable` in `src/lib/product.ts`; the server refuses the rest too). A Shopee or
+  Temu link gets "DeFaketive checks Lazada PH products only"; if a report was saved from it before, that report still
+  opens, with no "Check again". Products filters by the marketplaces the saved reports come from.
 - **One listing, one entry.** Shopee and Lazada links are matched by host and path. Temu gives every product the same
   path (`/goods.html`), so its `goods_id` is part of the match. (The original's own matching ignores it, which makes
   every Temu listing look like the same product.)
@@ -126,7 +130,7 @@ product that was already checked and to show its report.
   what is counted ("3 free scans"). What you get is a **report**. The app does not say "analyze" for what a person
   does. (The original app's own progress messages and its "Not analyzed yet" headline still do; they are shown as sent.)
 - **A running scan says how long it usually takes**, on the guest screen and on Check a product when the scan is of
-  one link: "1 to 2 minutes" for Lazada, "about 3 minutes" for Shopee and Temu. The figures are in `typicalScanTime`
+  one link: "1 to 2 minutes" for Lazada (the only marketplace scanned since 14 Oct 2026). The figures are in `typicalScanTime`
   in `src/lib/product.ts`. Lazada is read in the background from its review feed and was timed on 12 Oct 2026 (63
   seconds for a listing with 145 reviews, 134 for one with 298). Shopee and Temu have not been timed: theirs is the
   earlier figure from one Lazada listing read off the page (195 seconds).

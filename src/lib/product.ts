@@ -16,14 +16,22 @@ export const MARKETPLACES: Record<Marketplace, string> = {
 	temu: 'Temu PH'
 };
 
+/**
+ * The marketplaces DeFaketive checks: Lazada PH only, the owner's decision of 14 Oct 2026 (webapp.SCAN_PLATFORMS).
+ * Shopee and Temu links are still recognised, so a report saved from them still opens from its link, but they are
+ * never scanned.
+ */
+export const SCAN_MARKETPLACES: readonly Marketplace[] = ['lazada'];
+export const scannable = (platform?: Marketplace | null): boolean => Boolean(platform) && SCAN_MARKETPLACES.includes(platform!);
+export const LAZADA_ONLY = 'DeFaketive checks Lazada PH products only.';
+
 /** Lazada scans read this many written reviews from each star level (webapp.LAZADA_REVIEWS_PER_STAR). */
 export const LAZADA_REVIEWS_PER_STAR = 60;
 
 /**
  * How long a live scan of one product takes, link to report. Lazada is read in the background from its review
- * feed (timed 12 Oct 2026: 63 seconds for a listing with 145 reviews, 134 for one with 298). Shopee and Temu have
- * not been timed: they keep the earlier figure, which came from one Lazada listing read off the page
- * (11 Oct 2026: 195 seconds).
+ * feed (timed 12 Oct 2026: 63 seconds for a listing with 145 reviews, 134 for one with 298). Anything else keeps
+ * the earlier figure, from one Lazada listing read off the page (11 Oct 2026: 195 seconds).
  */
 const SCAN_TIMES: Partial<Record<Marketplace, string>> = { lazada: '1 to 2 minutes' };
 export const typicalScanTime = (platform?: string) => SCAN_TIMES[platform as Marketplace] ?? 'about 3 minutes';

@@ -24,16 +24,16 @@
 	const features = [
 		{ icon: LanguagesIcon, title: 'Taglish-aware sentiment', text: 'A language model trained on Filipino and English reviews sorts each review as positive, negative, or mixed or unclear.' },
 		{ icon: FileSearchIcon, title: 'Separate warnings', text: 'Safety, fake and defect reports are checked one by one, so good reviews never average away a fire report.' },
-		{ icon: GlobeIcon, title: 'Multi-platform coverage', text: 'Collects public reviews straight from Shopee PH, Lazada PH and Temu PH product pages.' },
+		{ icon: GlobeIcon, title: 'Built for Lazada PH', text: 'Reads public reviews straight from Lazada PH product pages, up to 60 from each star level.' },
 		{ icon: BoxesIcon, title: 'Similar products', text: 'When reviewers report problems, see similar products whose reviews raised no warnings.' }
 	];
 	const steps = [
-		['Paste link', 'Copy any gadget link from Shopee PH, Lazada PH or Temu PH.'],
+		['Paste link', 'Copy any gadget link from Lazada PH.'],
 		['We read the reviews', 'We collect the reviews and read every one, looking for words like peke, sira and umusok.'],
 		['Read the verdict', 'A plain verdict on safety, fakes and defects, with the exact reviews behind it.'],
 		['Shop smarter', 'If reviewers report problems, compare similar products with no warnings.']
 	];
-	const platforms = ['Shopee', 'Lazada', 'Temu'];
+	const platforms = ['Lazada PH'];
 </script>
 
 <svelte:head><title>DeFaketive · See what buyers report before you buy</title></svelte:head>
@@ -46,7 +46,7 @@
 			<p class="text-muted-foreground text-sm font-medium">Real reviews · Real buyers · Their own words</p>
 			<h1 id="landing-title" class="text-4xl font-semibold tracking-tight text-balance md:text-6xl">See what buyers report before you buy</h1>
 			<p class="text-muted-foreground max-w-xl text-lg">
-				DeFaketive reads customer reviews from Shopee, Lazada and Temu PH (in English, Filipino or Taglish) and shows you
+				DeFaketive reads customer reviews from Lazada PH (in English, Filipino or Taglish) and shows you
 				what buyers report about fakes, defects and safety problems, in their own words.
 			</p>
 			<div class="flex flex-wrap items-center gap-3">
@@ -67,7 +67,7 @@
 	<section class={['border-y', catalog.statsFailed && !catalog.stats && 'hidden']} aria-label="DeFaketive in numbers">
 		<dl class="mx-auto grid w-full max-w-6xl grid-cols-3 gap-4 px-4 py-8 text-center md:px-6">
 			{#if catalog.stats}
-				<div><dd class="text-3xl font-semibold tabular-nums"><CountUp value={catalog.stats.marketplaces} /></dd><dt class="text-muted-foreground text-sm">Marketplaces supported</dt></div>
+				<div><dd class="text-3xl font-semibold tabular-nums"><CountUp value={catalog.stats.marketplaces} /></dd><dt class="text-muted-foreground text-sm">{catalog.stats.marketplaces === 1 ? 'Marketplace supported' : 'Marketplaces supported'}</dt></div>
 				<div><dd class="text-3xl font-semibold tabular-nums"><CountUp value={catalog.stats.products} /></dd><dt class="text-muted-foreground text-sm">Products checked</dt></div>
 				<div><dd class="text-3xl font-semibold tabular-nums"><CountUp value={catalog.stats.reviews} /></dd><dt class="text-muted-foreground text-sm">Reviews analyzed</dt></div>
 			{:else}
@@ -110,7 +110,7 @@
 	</section>
 
 	<section class="mx-auto w-full max-w-6xl space-y-4 px-4 py-16 md:px-6" aria-labelledby="platforms-title">
-		<h2 id="platforms-title" class="text-sm font-semibold tracking-wide uppercase">Supported platforms</h2>
+		<h2 id="platforms-title" class="text-sm font-semibold tracking-wide uppercase">Supported marketplace</h2>
 		<ul class="flex flex-wrap gap-3">
 			{#each platforms as platform (platform)}
 				<li class="rounded-full border px-4 py-1.5 text-sm font-medium">{platform}</li>

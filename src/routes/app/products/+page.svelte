@@ -15,12 +15,12 @@
 	let concern = $state<ConcernFilter>('all');
 	let sort = $state<'fewest' | 'most' | 'reviews'>('fewest');
 
-	const platforms = [
+	// The marketplaces the saved reports come from. New checks are Lazada PH only, but reports saved earlier from
+	// another marketplace stay in the list, and can be picked out here.
+	const platforms = $derived([
 		['all', 'All marketplaces'],
-		['Shopee PH', 'Shopee PH'],
-		['Lazada PH', 'Lazada PH'],
-		['Temu PH', 'Temu PH']
-	];
+		...[...new Set(catalog.browse.map((product) => platformName(product)))].sort().map((name) => [name, name])
+	]);
 	// The same four group names as everywhere else, plus both warning groups together.
 	const concerns: [ConcernFilter, string][] = [
 		['all', 'All products'],

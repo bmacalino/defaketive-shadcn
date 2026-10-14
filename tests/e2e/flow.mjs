@@ -87,7 +87,8 @@ await page.screenshot({ path: `${out}/flow_wishlist.png`, fullPage: true });
 // --- Name search ---------------------------------------------------------------------
 await page.goto(base + '/app/analyze', { waitUntil: 'networkidle' });
 await page.locator('#search-query').fill('cable');
-check(await page.getByText('Choose a marketplace').isVisible(), 'a plain name asks for a marketplace');
+check(await page.getByText(/Fresh collection settings: Lazada PH/).isVisible(), 'a plain name is checked on Lazada PH');
+check(!(await page.getByText('Choose a marketplace').isVisible()), 'there is no marketplace to choose (Lazada PH only)');
 await page.getByRole('button', { name: 'Search saved reports' }).click();
 await page.waitForURL(/\/app\/products/);
 await page.waitForTimeout(500);

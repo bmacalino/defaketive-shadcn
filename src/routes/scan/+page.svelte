@@ -15,7 +15,15 @@
 	import { Kbd } from '#lib/components/ui/kbd/index.js';
 	import { Label } from '#lib/components/ui/label/index.js';
 	import { Spinner } from '#lib/components/ui/spinner/index.js';
-	import { LAZADA_REVIEWS_PER_STAR, linkIdentity, MARKETPLACES, queryContext, typicalScanTime } from '#lib/product.js';
+	import {
+		LAZADA_ONLY,
+		LAZADA_REVIEWS_PER_STAR,
+		linkIdentity,
+		MARKETPLACES,
+		queryContext,
+		scannable,
+		typicalScanTime
+	} from '#lib/product.js';
 	import { auth } from '#lib/stores/auth.svelte.js';
 	import { catalog } from '#lib/stores/catalog.svelte.js';
 	import { library } from '#lib/stores/library.svelte.js';
@@ -47,12 +55,14 @@
 			? (catalog.lookup(query) ?? library.mine.find((product) => linkIdentity(product.link) === linkIdentity(query)))
 			: null
 	);
+	// A Shopee or Temu link: its saved report still opens, but it is never checked (Lazada PH only).
+	const refused = $derived(Boolean(context.platform) && !scannable(context.platform) && !match);
 	const outOfScans = $derived(auth.ready && auth.left === 0);
-	const blocked = $derived(Boolean(context.platform) && !match && outOfScans);
+	const blocked = $derived(scannable(context.platform) && !match && outOfScans);
 
 	function submit(event: SubmitEvent) {
 		event.preventDefault();
-		if (!context.platform || blocked) return;
+		if (!context.platform || blocked || refused) return;
 		scan.search({ query, marketplace: context.platform, live: !match, productCount: 1, reviewCount: 100 });
 	}
 
@@ -65,7 +75,7 @@
 	);
 
 	const steps = [
-		['Paste a link', 'From a Shopee, Lazada or Temu PH product page.'],
+		['Paste a link', 'From a Lazada PH product page.'],
 		['We read the reviews', 'In English, Filipino and Taglish, looking for reports of fakes, defects and safety problems.'],
 		['Read the verdict', 'A plain verdict with the reviewers\' own words behind it. No score.']
 	];
@@ -100,11 +110,11 @@
 						id="guest-query"
 						name="query"
 						data-scan-input
-						placeholder="Paste a Shopee, Lazada or Temu PH link..."
+						placeholder="Paste a Lazada PH link..."
 						autocomplete="off"
 						bind:value={query}
 						disabled={scan.busy}
-						aria-invalid={notALink || unsupported}
+						aria-invalid={notALink || unsupported || refused}
 					/>
 					<InputGroupAddon align="inline-end" class="max-md:hidden"><Kbd title="Press / to jump here">/</Kbd></InputGroupAddon>
 				</InputGroup>
@@ -114,7 +124,11 @@
 					</p>
 				{:else if unsupported}
 					<p class="text-destructive flex items-center gap-1.5 text-sm" aria-live="polite">
-						<CircleAlertIcon class="size-4" /> This website is not supported. Paste a Shopee PH, Lazada PH, or Temu product link.
+						<CircleAlertIcon class="size-4" /> This website is not supported. Paste a Lazada PH product link.
+					</p>
+				{:else if refused}
+					<p class="text-destructive flex items-center gap-1.5 text-sm" aria-live="polite">
+						<CircleAlertIcon class="size-4 shrink-0" /> {LAZADA_ONLY} This {MARKETPLACES[context.platform!]} link can't be checked.
 					</p>
 				{:else if context.platform}
 					<p class="text-success flex items-center gap-1.5 text-sm" aria-live="polite">
@@ -125,9 +139,9 @@
 					<p class="bg-muted rounded-lg px-3 py-2 text-sm" aria-live="polite">
 						Already checked: <span class="font-medium">{match.name || 'this product'}</span>. Opening it does not use a free scan.
 					</p>
-				{:else if context.platform && !blocked}
+				{:else if scannable(context.platform) && !blocked}
 					<p class="text-muted-foreground text-xs">
-						Uses 1 free scan. We read {context.platform === 'lazada' ? `up to ${LAZADA_REVIEWS_PER_STAR} reviews from each star level` : 'up to 100 reviews'}.
+						Uses 1 free scan. We read up to {LAZADA_REVIEWS_PER_STAR} reviews from each star level.
 					</p>
 				{/if}
 			</div>
@@ -143,7 +157,7 @@
 					</div>
 				</Alert>
 			{:else}
-				<Button type="submit" size="lg" class="h-11" disabled={scan.busy || !context.platform}>
+				<Button type="submit" size="lg" class="h-11" disabled={scan.busy || !context.platform || refused}>
 					{#if scan.busy}<Spinner />{/if}
 					{match ? 'Open report' : context.platform ? `Check this ${MARKETPLACES[context.platform]} product` : 'Check this product'}
 					<ArrowRightIcon />

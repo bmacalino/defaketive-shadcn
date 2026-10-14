@@ -58,7 +58,7 @@
 	// The two explainers are for a first visit. Once something has been checked, the person's own results take their place.
 	const firstVisit = $derived(library.ready && !library.error && products.length === 0);
 	const steps = [
-		['Paste a link', 'Copy any product link from Shopee, Lazada or Temu PH and paste it into the bar above.'],
+		['Paste a link', 'Copy any product link from Lazada PH and paste it into the bar above.'],
 		['We read the reviews', 'A Filipino-aware language model reads each review and looks for reports of fakes, defects and safety problems.'],
 		['Get your result', "A plain verdict (no warnings, caution, or safety reports) with the reviewers' own words."]
 	];
@@ -75,7 +75,7 @@
 <header class="space-y-1">
 	<p class="text-muted-foreground text-sm">{auth.user ? 'Welcome back,' : 'Welcome,'}</p>
 	<h1 class="text-3xl font-semibold tracking-tight">{auth.user ? `${firstName(auth.user.name)}.` : 'shopper.'}</h1>
-	<p class="text-muted-foreground">Check what reviewers report before you buy from Shopee, Lazada or Temu PH.</p>
+	<p class="text-muted-foreground">Check what reviewers report before you buy from Lazada PH.</p>
 </header>
 
 <Card class="p-4 md:p-6" aria-label="Check a product">

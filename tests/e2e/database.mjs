@@ -100,7 +100,8 @@ const open = async (opts = {}) => {
 		await page.locator('#search-query').fill('https://www.temu.com/goods.html?goods_id=123456789');
 		await page.waitForTimeout(400);
 		check(!(await page.getByText(/Saved report found/).isVisible()), 'an unknown Temu link is not mistaken for another Temu product');
-		check(await page.getByRole('button', { name: /Check this Temu PH product/ }).isVisible(), 'an unknown Temu link offers a new scan');
+		check(!(await page.getByRole('button', { name: /Check this Temu PH product/ }).isVisible()), 'an unknown Temu link offers no scan');
+		check(await page.getByText(/checks Lazada PH products only/).first().isVisible(), 'it says DeFaketive checks Lazada PH products only');
 	}
 	await context.close();
 }

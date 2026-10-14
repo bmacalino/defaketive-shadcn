@@ -78,7 +78,7 @@
 			<div class="flex items-center justify-between gap-4">
 				<div class="space-y-0.5">
 					<Label for="pref-clipboard">Auto-fill from clipboard</Label>
-					<p id="pref-clipboard-help" class="text-muted-foreground text-sm">Put a copied Shopee, Lazada or Temu link in the link box</p>
+					<p id="pref-clipboard-help" class="text-muted-foreground text-sm">Put a copied Lazada PH link in the link box</p>
 				</div>
 				<Switch id="pref-clipboard" checked={prefs.clipboard} onCheckedChange={() => prefs.toggleClipboard()} aria-describedby="pref-clipboard-help" />
 			</div>

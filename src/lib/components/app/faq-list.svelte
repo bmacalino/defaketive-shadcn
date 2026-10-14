@@ -17,7 +17,7 @@
 			q: 'How does DeFaketive decide on a warning?',
 			a: 'It checks reviews for safety, fake and defect reports separately. A warning appears when enough reviewers report the same problem, and a single safety report is always shown. Every warning quotes the reviews behind it.'
 		},
-		{ q: 'Which platforms are supported?', a: 'Product links from Shopee PH, Lazada PH and Temu PH.' },
+		{ q: 'Which platforms are supported?', a: 'Lazada PH. Paste the link of any Lazada PH product page.' },
 		{
 			q: 'Can it detect Taglish reviews?',
 			a: 'Yes. The sentiment model was trained on Filipino and English reviews, and the warning word lists include Taglish terms like peke, sira and umusok.'

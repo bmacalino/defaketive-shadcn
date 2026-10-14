@@ -260,8 +260,10 @@ async function reportFacts(page) {
 	check(await page.getByRole('heading', { level: 1, name: 'Check a product' }).isVisible(), 'the page is called "Check a product"');
 	check(await page.getByRole('button', { name: 'Check', exact: true }).isVisible(), 'its main button says "Check"');
 	check(await page.getByRole('link', { name: 'Check a product' }).first().isVisible(), 'the side menu says "Check a product"');
+	await page.locator('#search-query').fill('https://www.lazada.com.ph/products/brand-new-thing-i123456789.html');
+	check(await page.getByRole('button', { name: 'Check this Lazada PH product' }).isVisible(), 'a new link offers "Check this Lazada PH product"');
 	await page.locator('#search-query').fill('https://shopee.ph/brand-new-thing-i.1.2');
-	check(await page.getByRole('button', { name: 'Check this Shopee PH product' }).isVisible(), 'a new link offers "Check this Shopee PH product"');
+	check(await page.getByText(/checks Lazada PH products only/).first().isVisible(), 'a Shopee link is not checked: Lazada PH only');
 	await page.keyboard.press('Control+k');
 	await page.getByRole('dialog').getByRole('option', { name: 'Check a product' }).waitFor({ timeout: 5000 });
 	check(true, 'Ctrl+K lists "Check a product"');
