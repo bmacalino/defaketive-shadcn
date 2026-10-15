@@ -203,3 +203,84 @@ hindi orig	counterfeit	3	tl
 di orig	counterfeit	3	tl
 not genuine	counterfeit	3	en
 iba sa picture	counterfeit	2	tl
+
+# ---------------------------------------------------------------------------
+# Electronic-gadgets scope expansion (15 Oct 2026). Two sources: confirmed
+# gaps from research/lexicons/mining_seeds_v1.tsv (a 205-term pool the
+# project vetted from its own tagging guide but never fully shipped -- each
+# one traced through text_norm.normalize_text()/taglish_variants_v1.tsv/
+# AFFIX_PREFIXES first so no row here duplicates an existing lemma fold, e.g.
+# "hindi nag-charge" was skipped because it already folds to shipped "hindi
+# nagchacharge"); and gaps specific to gadget subcategories with real scraped
+# review data (earbuds, keyboard/mouse, controllers, CCTV/smart home).
+# Measured against five_label_data (research/check_gadget_vocab_candidates.py,
+# ~6,020 labelled sentences) and against ~14,000 freshly-scraped unlabelled
+# reviews (real-text spot checks, no ground truth there). Dropped from the
+# original candidate list after measurement/spot-checking: "hindi tugma"
+# (15 of 16 labelled hits wrong -- it means "doesn't match/fit" in size,
+# colour or a physical part, not counterfeit); bare "black screen" (matched
+# a review describing the reviewer's OLD, DIFFERENT device, not this
+# product); bare "double click" (matched an earbud's "double-click the power
+# button to turn off the light" instruction, not a mouse defect -- the
+# gerund/verb-marked forms below don't collide with that phrasing). "di
+# original" kept despite one labelled miss (a hypothetical-fear sentence):
+# it mirrors already-shipped "hindi original"/"hindi orig", so the miss
+# reflects an existing, already-accepted speculation-guard limitation, not
+# new risk. Several Tier C candidates (stick drift, cursor not moving,
+# sticky keys, "static" noise, bare "signal", CCTV blurry-footage
+# reclassification) were investigated and explicitly NOT added: no real
+# occurrences to measure against (controller/CCTV subcategories have no
+# dedicated scrape yet), or the evidence was mixed/risky (bare "signal" hit
+# positive uses like "Stable signal, no more dropped calls!"; "static" had
+# only 1 right vs 1 wrong on the one small labelled sample available). This
+# addition requires the hazard_classifier_v6 learned model (safety, defect)
+# to be rebuilt, since its keyword_file_hashes() check locks it to the
+# lexicon content it was trained with.
+di original	counterfeit	3	tl
+class b	counterfeit	3	taglish
+knockoff	counterfeit	3	en
+knock off	counterfeit	3	en
+iba sa litrato	counterfeit	3	tl
+pekeng	counterfeit	3	tl
+hindi umaandar	defect	3	tl
+hindi na umaandar	defect	3	tl
+malfunction	defect	3	en
+doa	defect	3	en
+walang power	defect	3	tl
+wont turn on	defect	3	en
+will not turn on	defect	3	en
+mabilis maubos	defect	2	tl
+di nagcha-charge	defect	3	tl
+# Bluetooth earbuds/earphones/speakers/mics.
+iisang tainga	defect	2	tl
+isang tainga lang	defect	2	tl
+kaliwa lang gumagana	defect	2	tl
+kanan lang gumagana	defect	2	tl
+one side not working	defect	2	en
+one earbud not working	defect	2	en
+ayaw magpair	defect	3	tl
+hindi nagpapair	defect	3	tl
+di nagpapair	defect	3	tl
+won't pair	defect	3	en
+not pairing	defect	2	en
+# Keyboard / mouse.
+nag double click	defect	2	tl
+nagdouble click	defect	2	tl
+double clicking	defect	2	en
+not detected	defect	2	en
+hindi nadetect	defect	2	tl
+di nakikita ng laptop	defect	3	tl
+hindi nakikita ng computer	defect	3	tl
+# Controllers.
+di naresponde	defect	2	tl
+hindi naresponde	defect	2	tl
+unresponsive buttons	defect	3	en
+# CCTV / smart home.
+walang feed	defect	3	tl
+no feed	defect	3	en
+madalas madiscon	defect	2	tl
+palaging nadiscon	defect	2	tl
+paulit-ulit na nadiscon	defect	2	tl
+blangko ang screen	defect	3	tl
+walang na-save	defect	3	tl
+no recording	defect	3	en
