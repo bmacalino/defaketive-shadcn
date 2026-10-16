@@ -13,6 +13,10 @@ never change them. Everything here works on normalized text
 First written from labelling rounds 5-6 and revised on rounds 1-6
 (research/RESULTS_TABLES.md, Tables 11i-11j). Round 7 was kept out of the
 revision so there is one round the patterns were not fitted to.
+
+Tagging guide 1.5 (16 Oct 2026) defines both labels in full; revision r5
+below follows it and is what the checker serves under keyword rules 0.4
+(held-out round 13, research/RESULTS_TABLES.md, Table 12i).
 """
 
 from __future__ import annotations
@@ -256,11 +260,141 @@ NEGATED_BEFORE_04 = re.compile(
 )
 
 
-def not_as_described_spans(normalized: str) -> list[tuple[int, int]]:
+# Revision r5 (16 Oct 2026): both labels, written from the definitions of
+# tagging guide 1.5 (Rule 10, approved by the owner that day) after rounds 1-12
+# were re-checked against them (research/recheck_guide15.py). Each group is
+# checked on and off over every labelled sentence
+# (research/check_guide15_rules.py) and judged once on held-out round 13
+# (research/PREREGISTRATION_round13.md). R5_OFF names groups switched off, for
+# that check only.
+EXTRA_RULES_REVISION_05 = "r5"
+_NOT_05 = r"(?:hindi|hinde|hind|hndi|hnd|di|d|nd|nde|ndi|not|isn't|isnt|wasn't|wasnt|ain't|aint|doesn't|doesnt|never)"
+_SOFT_05 = (
+    r"(?:(?:po|naman|nman|nmn|namn|talaga|tlga|tlaga|sya|siya|cya|xa|sia|rin|din|a|an|even|really|totally|tunay|totoo"
+    r"|totoong|n|na|ata|nga|ito|to|tong|yan|yung|ung|super|ultra|ganun|ganon|gaanong|that|the)\s+)"
+)
+_FAST_05 = r"(?:fast|past|super ?fast|ultra ?fast|turbo|quick|rapid)\s*(?:charge\w*|charger\w*|charging)"
+_BODY = r"(?:tenga|tainga|ulo|kamay|wrist|leeg|balat|daliri|ears?|head|hands?|fingers?|neck|skin)"
+# Words a product is sold by: a reviewer who denies one is answering the listing.
+_SOLD_AS = (
+    r"(?:mini|slim|ultra ?thin|wireless|mechanical|backlit|backlight|bluetooth|rechargeable|magnetic|magsafe|portable"
+    r"|lightweight|silent|noise ?cancel\w*|anc|enc|stereo|hd|full ?hd|4k|touch ?screen|heavy ?duty|qwerty|genuine leather"
+    r"|leather|cotton|metal|aluminum|aluminium|water ?resistant|dual ?band|hot ?swap\w*|tri ?mode|super ?bass|bass ?boost"
+    r"|rgb|motion sensor|solar)"
+)
+R5_QUALITY_GROUPS: dict[str, tuple[re.Pattern[str], ...]] = {
+    # it fits or feels badly in use
+    "fit_comfort": _compile(
+        (
+            rf"(?:masakit|sumasakit|sumakit|nangangawit|nangangalay|makati)\s+(?:(?:sa|ang|yung|ung|ng)\s+)?(?:loob ng\s+)?{_BODY}",
+            rf"hurts?\s+(?:(?:my|the)\s+)?{_BODY}",
+            r"(?:uncomfortable|not comfortable|hindi comfortable|di comfortable|d comfortable|hindi komportable|di komportable"
+            r"|not comfy|hindi comfy)(?!\w)",
+            rf"(?:masikip|sobrang sikip|too tight|too big|too small|malaki|maliit)\s+(?:(?:sa|para sa|for)\s+)?(?:(?:my|ko|ng)\s+)?{_BODY}",
+            r"falls? out(?:\s+of)?(?:\s+my)?\s+ears?(?!\w)",
+            rf"(?:hindi|di|not|doesn't|doesnt)\s+fit\s+(?:(?:sa|in|my)\s+)?{_BODY}",
+        )
+    ),
+    # lag that still works is weak performance; freezing and cutting out are faults
+    "lag": _compile(
+        (
+            r"(?:lag|laggy|lagging|nag ?lalag|naglag|nag ?lag|nagla lag)(?!\w)",
+            rf"(?:delay(?:ed)?|late)\s+{_FILL}{{0,2}}(?:cursor|input|pindot|keys?|clicks?|notifs?|notifications?|bluetooth)(?!\w)",
+            rf"(?:mabagal|bagal|slow)\s+{_FILL}{{0,2}}(?:response|mag respond|mag ?response|to respond|to wake|cursor)(?!\w)",
+        )
+    ),
+    # the review template's own fields, with a poor answer or a score of 5 out of 10 or lower
+    "template_fields": _compile(
+        (
+            r"(?:sound quality|quality|durability|materials?|build(?: quality)?|comfort|functionality|performance)\s*[:：]\s*"
+            r"(?:[\w']+\s+){0,2}?(?:[0-5](?:\.\d)?\s*/\s*10|[0-2](?:\.\d)?\s*/\s*5)(?!\d)",
+            r"(?:sound quality|quality|durability|materials?|build(?: quality)?|comfort|functionality)\s*[:：]\s*"
+            r"(?:is\s+|very\s+|super\s+|so\s+)?(?:meh|poor|bad|low|cheap|mura|mahina|not good|not great|not really good|pangit"
+            r"|panget|sub ?standard|terrible|worst|nakaka ?disappoint\w*|disappointing|basag|sabog|mumurahin)(?!\w)",
+        )
+    ),
+    # a plain verdict on the item's quality
+    "verdicts": _compile(
+        (
+            r"(?:mahinang klase|mababang? (?:ang |yung |ung )?(?:quality|kalidad)|sablay (?:ang |yung |ung )?quality"
+            r"|halatang low quality|quality is (?:poor|bad|low|below)|below average quality)(?!\w)",
+            r"(?:hindi|di|not)\s+(?:sya\s+|siya\s+|xa\s+)?quality(?:\s+product)?(?:\s*[.!]|\s*$)",
+        )
+    ),
+}
+# Damage on the product that leaves it usable, beside COSMETIC (same box guard).
+R5_COSMETIC = re.compile(
+    r"(?<!\w)(?:may (?:basag|bitak|lamat|crack)|(?:basag|bitak|lamat|crack|cracked)\s+(?:na\s+)?(?:ang|yung|ung|sa|on the|at the)\s+"
+    r"(?:likod|gilid|harap|case|casing|cover|takip|frame|body|lens|salamin|ilaw|kanto|stand|tempered glass|glass|tripod|lock|back|side|top|corner)"
+    r"|sticky (?:residue|keys?|buttons?)|malagkit)(?!\w)",
+    re.IGNORECASE,
+)
+R5_NAD_GROUPS: dict[str, tuple[re.Pattern[str], ...]] = {
+    # guide 1.5, owner's decision: a slow charge against a stated fast-charging claim
+    "charging_claim": _compile(
+        (
+            rf"{_NOT_05}\s+{_SOFT_05}{{0,4}}{_FAST_05}(?!\w)",
+            r"(?:charge\w*|charging)\s+(?:speed\s+)?(?:is\s+|still\s+|was\s+)*(?:not|isn't|isnt|wasn't|wasnt)\s+(?:that\s+|so\s+|very\s+)?fast(?!\w)",
+            rf"(?:advertised|sold|listed|it says|says)\s+(?:as\s+|it\s+is\s+)?(?:a\s+)?{_FAST_05}(?!\w)",
+            r"normal (?:na\s+)?(?:charge\w*|charging)\s+(?:lang|lng|only)(?!\w)",
+            r"(?:parang|like a|just a)\s+(?:normal|regular|ordinary)\s+(?:na\s+)?charger(?!\w)",
+            rf"(?:akala ko|kala ko|akala q|kala q|i thought)\s+(?:(?:ba|na|sya|siya|it was|it's|its)\s+){{0,2}}{_FAST_05}",
+            rf"{_FAST_05}\s+(?:daw|raw)\s+(?:[\w']+\s+){{0,3}}(?:pero|but|tapos|kaso|ang bagal|mabagal|slow)(?!\w)",
+        )
+    ),
+    # a word the product is sold by, named to deny it
+    "sold_as_denied": _compile(
+        (
+            rf"{_NOT_05}\s+{_SOFT_05}{{0,3}}(?:pang\s+|a\s+|an\s+|real\s+)?{_SOLD_AS}(?!\w)",
+            rf"{_SOLD_AS}\s+(?:daw|raw)(?!\w)",
+            rf"(?:akala ko|kala ko|akala q|kala q|i thought)\s+(?:(?:ba|na|sya|siya|it was|it's|its|is|may|meron)\s+){{0,2}}{_SOLD_AS}(?!\w)",
+            rf"supposed to (?:be|have|support)\s+(?:a\s+|an\s+)?(?:{_NUM}\s*{_UNIT}|{_SOLD_AS})(?!\w)",
+            rf"(?:it|the box|box|label|title|listing|description|ad|post)\s+says\s+(?:it\s+(?:is|has)\s+)?(?:{_NUM}\s*{_UNIT}|{_SOLD_AS})(?!\w)",
+        )
+    ),
+    # "advertise" spelled without the d, and "as described" forms the served patterns miss
+    "advertise_forms": _compile(
+        (
+            r"not (?:the )?same (?:as |with |sa )?(?:the )?(?:advertise\w*|ads?|listing)(?!\w)",
+            r"(?:as|than|from what is|kesa sa|kaysa sa)\s+(?:advertise|advertize\w*)(?!\w)",
+            r"(?:fake|misleading|false)\s+(?:info\w*|caption|product name|specs?|claims?)(?!\w)",
+        )
+    ),
+    # a freebie or bundle the listing promised, not received
+    "offer_not_received": _compile(
+        (
+            r"(?:sabi|nakalagay|naka lagay|advertis\w*|listing|description|stated|title|post|ads?)\s+"
+            r"(?:(?!(?:not|di|hindi|wala|walang|no)\s)[\w',.!\"]+\s+){0,5}"
+            r"[\"']?(?:free|freebies?|bundle|kasama|kasamang|included|includes)\W+(?:[\w',.!\"]+\s+){0,6}?(?:wala|walang|none|no|not|pero|but|tapos|kaso)(?!\w)",
+            r"no free\s+(?:[\w']+\s+){0,2}(?:as\s+)?(?:stated|advertised|promised)(?!\w)",
+        )
+    ),
+}
+R5_OFF: set[str] = set()
+# "hindi rin kami naka experience ng lag", "HND rin masakit sa tainga", "minimal lag":
+# r5 reads more spellings of "hindi" and a longer run of words after it.
+NEGATED_BEFORE_05 = re.compile(
+    r"(?<!\w)(?:wala|walang|hindi|hinde|hind|hndi|hnd|di|d|nd|nde|ndi|no|not|without|zero|never|minimal|doesn't|doesnt"
+    r"|don't|dont|isn't|isnt|ni minsan)\s+(?:look\s+|looks\s+|seem\s+|feel\s+)?"
+    r"(?:(?:po|pong|naman|namn|nman|nmn|namang|ng|man|talaga|any|kahit|ka|ko|kami|ako|rin|din|naka|nakaka|experience"
+    r"|experienced|nakaranas|encounter|encountered|sya|siya|masyado|masyadong|ganun|gaano|gaanong|yung|ung|tipong"
+    r"|scratches|dents?|gasgas|or|o|at)\s+){0,5}$",
+    re.IGNORECASE,
+)
+
+
+def _r5_patterns(groups: dict[str, tuple[re.Pattern[str], ...]]) -> tuple[re.Pattern[str], ...]:
+    return tuple(pattern for name, patterns in groups.items() if name not in R5_OFF for pattern in patterns)
+
+
+def not_as_described_spans(normalized: str, revision: str = EXTRA_RULES_REVISION) -> list[tuple[int, int]]:
     """Where the reviewer disputes a number, a feature or the photos."""
+    patterns = NOT_AS_DESCRIBED_PATTERNS
+    if revision == EXTRA_RULES_REVISION_05:
+        patterns = patterns + _r5_patterns(R5_NAD_GROUPS)
     spans = [
         found.span()
-        for pattern in NOT_AS_DESCRIBED_PATTERNS
+        for pattern in patterns
         for found in pattern.finditer(normalized)
         if not SPECULATION.search(normalized[: found.start()]) and "dual shock" not in found.group(0).casefold()
     ]
@@ -296,6 +430,9 @@ def quality_spans(normalized: str, revision: str = EXTRA_RULES_REVISION) -> list
     patterns, negated_before = (
         (QUALITY_PATTERNS_04, NEGATED_BEFORE_04) if revision == EXTRA_RULES_REVISION_04 else (QUALITY_PATTERNS, NEGATED_BEFORE)
     )
+    if revision == EXTRA_RULES_REVISION_05:
+        patterns = QUALITY_PATTERNS_04 + _r5_patterns(R5_QUALITY_GROUPS)
+        negated_before = NEGATED_BEFORE_04 if "negation" in R5_OFF else NEGATED_BEFORE_05
     spans = [
         found.span()
         for pattern in patterns
@@ -306,9 +443,11 @@ def quality_spans(normalized: str, revision: str = EXTRA_RULES_REVISION) -> list
         and not CONDITION_BEFORE.search(normalized[: found.start()])
         and not ("hina" in found.group(0).casefold() and CHARGING_AFTER.match(normalized[found.end():]))
     ]
+    cosmetic = (COSMETIC, R5_COSMETIC) if revision == EXTRA_RULES_REVISION_05 and "cosmetic" not in R5_OFF else (COSMETIC,)
     spans += [
         found.span()
-        for found in COSMETIC.finditer(normalized)
+        for regex in cosmetic
+        for found in regex.finditer(normalized)
         if not negated_before.search(normalized[: found.start()]) and not _on_the_box(normalized, found.span())
     ]
     return sorted(set(spans))
