@@ -116,6 +116,23 @@ NEGATION_TRANSPARENT_CONTRACTIONS_04_REVISION = "f2"
 # safety, defect and counterfeit too.
 NEGATION_EXTRA_04 = frozenset({"hinde"})
 NEGATION_EXTRA_04_REVISION = "n1"
+# "Okiy po d sira fast charger din sya", "sna d madaling masira" (16 Oct 2026):
+# a bare "d" for "hindi" in front of the defect word. taglish_variants_v1.tsv
+# rejects a GENERAL "d" -> "hindi" rewrite ("vitamin d", "type d"); this is
+# narrower, a negator only for the hazard word it stands right before, the
+# reach "hinde" has. Measured on every labelled sentence
+# (research/check_step6_changes.py): 3 wrong flags removed, none right, none
+# added. Its own set and marker, so the "hinde" check still measures "hinde".
+NEGATION_D_04 = frozenset({"d"})
+NEGATION_D_04_REVISION = "f9"
+# Bare "kuryente" is the power supply ("4hrs lang kuryente dito", "pag walang
+# kuryente"): all 6 labelled sentences it matched were false safety alarms
+# (16 Oct 2026). The shock verbs ("nakuryente", "kinuryente") fold to the same
+# word in taglish_variants_v1.tsv, so the word list cannot tell them apart;
+# the raw word the reviewer wrote can. A bare "kuryente" is excluded unless
+# "amoy" (smells of electricity) stands in the two words before it.
+POWER_SUPPLY_WORD = "kuryente"
+POWER_SUPPLY_REVISION = "f10"
 # The lexicon's own "hindi X" / "di X" failure and not-original phrases
 # (risk_lexicon.tsv: "hindi gumagana", "di gumagana", "hindi legit", "hindi
 # original"...) have the same missing-spelling gap "hinde basag" had, just
@@ -194,10 +211,46 @@ DURABILITY_PRAISE_REVISION = "f5"
 # clearly praise. Measured (research/check_battery_durability_praise.py):
 # 2 flags removed, 0 added, both removals correct - one of them the exact
 # review from the owner's screenshot, sitting in the TEAM's own round 8.
-BATTERY_DURABILITY_PRAISE = re.compile(
+BATTERY_DURABILITY_PRAISE_F6 = re.compile(
     r"(?:matagal|tumagal)\w*\s*(?:ma\s*)?(?:lowbat|lobat|low\s*bat)\w*", re.IGNORECASE
 )
 BATTERY_DURABILITY_PRAISE_REVISION = "f6"
+
+
+class _BatteryDurabilityPraise:
+    """f8 (16 Oct 2026): the battery guard above, widened and made safer.
+
+    Round 11's keyboards, mice and watches showed the praise in more shapes
+    than f6 reads: a typo ("matgal ma lowbat"), "napakatagal", a word between
+    ("tagal nya ma lowbat", "matagal syang malowbat"), Cebuano "dugay
+    malowbat", and the negated form "di madaling malowbat" (not quick to run
+    out). It also showed two holes in f6 itself: "hindi tumagal lowbat agad"
+    and "di matagal malowbat" are complaints, yet f6 read them as praise.
+    So: whole words only; no negator in the two words before; no charging
+    word in the gap ("matagal magcharge, lowbat agad" is two complaints); and
+    "tumagal" left out (it is nearly always "hindi tumagal"). Checked on 15
+    hand cases, then on every labelled sentence
+    (research/check_step6_changes.py): 10 wrong flags removed, none right,
+    none added. Same .search() as the regex it replaces, so the research
+    checks that swap it still work.
+    """
+
+    pattern = "battery durability praise f8"
+    _LOW = r"(?:ma\s*)?(?:lowbat|lobat|low\s*bat+)\w*"
+    _GAP = r"(?:(?!\w*(?:charg|karga|full|puno))\w+\s+){0,2}?"
+    _PRAISE = re.compile(rf"\b(?:napaka|sobrang?\s*)?(?:ma)?ta?gal\w*\s+{_GAP}{_LOW}|\bdugay\s+{_LOW}", re.IGNORECASE)
+    _NOT_QUICK = re.compile(rf"\b(?:hindi|hinde|di|d|ndi|nde)\s+(?:\w+\s+)?(?:ma)?(?:dali|bilis)\w*\s+{_LOW}", re.IGNORECASE)
+    _NEGATORS = frozenset({"hindi", "hinde", "di", "d", "ndi", "nde", "wala", "walang", "not", "never", "pa"})
+
+    def search(self, text: str) -> re.Match[str] | None:
+        for match in self._PRAISE.finditer(text):
+            if not self._NEGATORS & set(re.findall(r"[\w']+", text[: match.start()].casefold())[-2:]):
+                return match
+        return self._NOT_QUICK.search(text)
+
+
+BATTERY_DURABILITY_PRAISE = _BatteryDurabilityPraise()
+BATTERY_DURABILITY_PRAISE_REVISION_2 = "f8"
 
 # "Gumagana naman" (it works) - same mechanism as the battery guard above, a
 # different fragment: a bare, isolated "it works" statement, no complaint of
@@ -686,7 +739,7 @@ class LexiconHazardTagger:
             return text_norm.is_negated_adjacent(
                 normalized,
                 start,
-                extra_negators=NEGATION_EXTRA_04,
+                extra_negators=NEGATION_EXTRA_04 | NEGATION_D_04,
                 extra_transparent=NEGATION_TRANSPARENT_04
                 | NEGATION_TRANSPARENT_CONTRACTIONS_04
                 | NEGATION_TRANSPARENT_CONTRACTIONS_04_EXTRA,
@@ -776,6 +829,17 @@ class LexiconHazardTagger:
                     repeated = {"end": match.end(), "negated": negated}
                     raw_span = self._raw_span(match.span(), spans)
                     reason = self._excluded(category, term, normalized, match.span(), name_spans)
+                    if (
+                        reason is None
+                        and self.rules == "0.4"
+                        and category == SAFETY
+                        and term == POWER_SUPPLY_WORD
+                        and raw_span
+                        # The raw span can carry the punctuation after the word ("kuryente.").
+                        and re.sub(r"\W+", "", raw[raw_span[0] : raw_span[1]].casefold()) == POWER_SUPPLY_WORD
+                        and "amoy" not in re.findall(r"[\w']+", normalized[: match.start()])[-2:]
+                    ):
+                        reason = "power_supply"
                     matches.append(
                         {
                             "ngram": term,
@@ -1129,6 +1193,9 @@ class HazardBadgeModel:
                 + DURABILITY_PRAISE_REVISION
                 + BATTERY_DURABILITY_PRAISE_REVISION
                 + PURE_AFFIRMATION_REVISION
+                + BATTERY_DURABILITY_PRAISE_REVISION_2
+                + NEGATION_D_04_REVISION
+                + POWER_SUPPLY_REVISION
             )
         hazard_version = base_version
         if learned is not None:

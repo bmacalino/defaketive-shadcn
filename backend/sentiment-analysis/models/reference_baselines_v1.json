@@ -1,18 +1,18 @@
 {
  "version": "reference-baselines-2.0.0",
- "built_at": "2026-10-15T14:21:24+00:00",
- "measured_with": "defaketive-hazard-lexicon-0.3.0+rules0.4g1n1f1f2f3f4f5f6f7+hazard-learned-6.0.0-safety-defect-d08da0f0+r1b+c2r2+defaketive-xlmr-firecs-v1-onnx-int8-e04da4c2",
+ "built_at": "2026-10-16T05:38:49+00:00",
+ "measured_with": "defaketive-hazard-lexicon-0.3.0+rules0.4g1n1f1f2f3f4f5f6f7f8f9f10+hazard-learned-6.0.0-safety-defect-34a2ad69+r1b+c2r2+defaketive-xlmr-firecs-v1-onnx-int8-e04da4c2",
  "source": "research/build_reference_baselines.py (research/reference_baselines_feed_report.json)",
  "note": "Median flagged-review rate over gadget listings scanned from Lazada's review feed as the app scans them, star-weighted. In the checker's own units, and for whole review text: rebuild when the checker or the review source changes.",
  "default_product_type": "gadget",
  "product_types": {
   "gadget": {
    "defect": {
-    "pooled_rate": 0.065829,
+    "pooled_rate": 0.05712,
     "listings": 59,
     "median_ci_95": [
-     0.04616,
-     0.097582
+     0.047877,
+     0.074563
     ]
    },
    "counterfeit": {

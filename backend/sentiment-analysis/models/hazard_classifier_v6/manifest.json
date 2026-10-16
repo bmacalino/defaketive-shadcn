@@ -1,82 +1,82 @@
 {
   "version": "hazard-learned-6.0.0",
-  "trained_at": "2026-10-15T13:48:05+00:00",
+  "trained_at": "2026-10-16T05:03:01+00:00",
   "keyword_rules": "0.4",
   "counterfeit_rules": "c2",
   "categories": {
     "safety": {
       "file": "safety.joblib",
-      "sha256": "fd2fdf33b7ff5476c89bacd010a61338d1ac0bd8325f30b8be248315e71db7ef",
+      "sha256": "54a4e341f373ba6f0d648ef62da0f0331082668062f4acf207fe7d1e84b0f65a",
       "candidate": "TK",
-      "threshold": 0.8619510762729257,
+      "threshold": 0.877117753314345,
       "combine": "and",
       "needs_embedding": false,
       "filter_spares_severity_above": 2,
       "threshold_rule": "keeps 95 in 100 of the real reports the keywords flag, out of fold (research/train_with_synthetic.py)",
-      "training_rows": 5182,
-      "training_positives": 111,
+      "training_rows": 5782,
+      "training_positives": 125,
       "synthetic_rows": 1368,
       "synthetic_positives": 180,
       "training_data": "every labelled round (team safety answers for rounds 1-3, AI labels for rounds 5-8, accepted unaudited) plus sentences written by the AI assistant (research/synthetic/), used for training only",
       "cross_validated_on_real_sentences": {
         "keywords_alone": {
-          "tp": 92,
-          "fp": 66,
-          "fn": 19,
-          "precision": 0.5823,
-          "recall": 0.8288,
-          "f1": 0.684
+          "tp": 104,
+          "fp": 62,
+          "fn": 21,
+          "precision": 0.6265,
+          "recall": 0.832,
+          "f1": 0.7148
         },
         "filter": {
-          "tp": 88,
-          "fp": 52,
-          "fn": 23,
-          "precision": 0.6286,
-          "recall": 0.7928,
-          "f1": 0.7012
+          "tp": 99,
+          "fp": 50,
+          "fn": 26,
+          "precision": 0.6644,
+          "recall": 0.792,
+          "f1": 0.7226
         }
       }
     },
     "defect": {
       "file": "defect.joblib",
-      "sha256": "6d9a4b2baa5cc64fe3a3bc63bf1694e0502b49014d83c8fc83e974947656f482",
+      "sha256": "b0bd85aeb260e62fcb3e947b8e77e8b559dc7f23892a0a8431ce2334b7977f95",
       "candidate": "TK",
-      "threshold": 0.536632,
-      "threshold_high_star": 0.596969,
+      "threshold": 0.476802,
+      "threshold_high_star": 0.651801,
       "high_star": {
         "rule": "Among sentences of 4-5 star reviews that the keywords did not flag and that are not praise, the threshold - never below the ordinary one - at which the added flags that are right outnumber those that are wrong by the most (out-of-fold scores; round 8 rows count for the pool sentences they stand for; ties go to the lower threshold). Below it an added flag is more often wrong than right.",
-        "ordinary_threshold": 0.536632,
-        "bar": 0.596969,
-        "sentences_in_question": 159,
+        "ordinary_threshold": 0.476802,
+        "bar": 0.651801,
+        "sentences_in_question": 227,
         "resampled_reviews": {
           "draws": 500,
-          "p10": 0.5965,
-          "median": 0.6364,
-          "p90": 0.7866
+          "p10": 0.5334,
+          "median": 0.6696,
+          "p90": 0.7697
         },
         "added_flags_in_4_5_star_reviews": {
           "at_the_ordinary_threshold": {
-            "right": 108.0,
-            "wrong": 84.1
+            "right": 146.5,
+            "wrong": 117.6
           },
           "at_the_bar": {
-            "right": 98.9,
-            "wrong": 53.0
+            "right": 105.7,
+            "wrong": 51.4
           }
         },
         "added_flags_in_1_3_star_reviews": {
           "at_the_ordinary_threshold": {
-            "right": 690.2,
-            "wrong": 151.9
+            "right": 821.5,
+            "wrong": 183.9
           },
-          "the_same_rule_would_set": 0.536632
+          "the_same_rule_would_set": 0.525529
         }
       },
       "combine": "or_gated",
       "gate": "sentence sentiment is not positive",
       "needs_embedding": false,
-      "training_rows": 4992,
-      "training_positives": 1171,
+      "training_rows": 5592,
+      "training_positives": 1485,
       "training_rows_by_round": {
         "1": 833,
         "2": 519,
@@ -85,7 +85,8 @@
         "6": 600,
         "7": 600,
         "8": 360,
-        "9": 989
+        "9": 989,
+        "11": 600
       },
       "training_data": "rounds 1-3: the team's defect answers re-read by the AI assistant under guide 1.4 (ai_relabel.csv); rounds 5-7 and the mining listings of round 8: AI-proposed labels, accepted by the owner on 8 October 2026 without an audit",
       "from": "hazard_classifier_v5 (unchanged)"
@@ -116,19 +117,19 @@
     "safety_summed_over_left_out_real_rounds": {
       "served_before": {
         "tp": 66,
-        "fp": 42,
+        "fp": 38,
         "fn": 15,
-        "precision": 0.6111,
+        "precision": 0.6346,
         "recall": 0.8148,
-        "f1": 0.6984
+        "f1": 0.7135
       },
       "this_filter": {
-        "tp": 66,
-        "fp": 33,
-        "fn": 15,
-        "precision": 0.6667,
-        "recall": 0.8148,
-        "f1": 0.7333
+        "tp": 65,
+        "fp": 32,
+        "fn": 16,
+        "precision": 0.6701,
+        "recall": 0.8025,
+        "f1": 0.7303
       },
       "served_reports_lost_on_team_rounds": 0
     },

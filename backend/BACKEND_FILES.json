@@ -1,10 +1,10 @@
 {
  "what": "Files copied byte for byte from the original app by scripts/sync_backend.py. Do not edit them here.",
  "original": {
-  "commit": "ebe82cb83ca1f50feb01a53e11579ad008418b9e",
+  "commit": "ef617a73b91c2a911f379221ab7f788f224aa98c",
   "branch": "html-css-migration"
  },
- "copied_at": "2026-10-15T15:41:39+00:00",
+ "copied_at": "2026-10-16T07:07:35+00:00",
  "files": {
   "webapp.py": "c177fefc6818b0f309eaa53c43b33074838d7fc36033897dd8b229013677257a",
   "accounts.py": "4c3f9f804618846473d8612233540bffa0a26534eeb1d12fb6974da4ea29b609",
@@ -61,7 +61,7 @@
   "sentiment-analysis/defaketive_sentiment/analyze_reviews.py": "e8aa798c39d7a18cff77fd89ffb5fcd0b22be87fd6f57ea08010e4758bc7f553",
   "sentiment-analysis/defaketive_sentiment/extra_labels.py": "f2364e45f57d545339805090041e4915b6d9728a859f573e68737c88a16c76c2",
   "sentiment-analysis/defaketive_sentiment/hazard_learned.py": "1ff7af88ed5c979dd02b3ab9e2a872bc92f4028d38511efbf9f7f931b849213e",
-  "sentiment-analysis/defaketive_sentiment/hazard_model.py": "e7bf814d3ca1097a647a10f66b9fa27c6ade738b254e8bc172092469a41bb482",
+  "sentiment-analysis/defaketive_sentiment/hazard_model.py": "f37f129f6aeefe4256653911fc7c8601799bb782b70ec5e76e64a94fb00d5ba5",
   "sentiment-analysis/defaketive_sentiment/hazard_taxonomy.py": "9a34caf591adb417f81f4dc17e06d0cfde7d5cd52de9e9fd208e336e9d7cf348",
   "sentiment-analysis/defaketive_sentiment/lexicons/hazard_parameters_v1.json": "6386ecd36f43ce8fc0bb73d7584ece4040a0eede1edf8384ebb81d6bbb754250",
   "sentiment-analysis/defaketive_sentiment/lexicons/hazard_phrase_exclusions_v1.tsv": "bbcc404373f4f2e2655945b9a89d63831ba5d16413dcd7feccb2b4a9099a8dcd",
@@ -82,10 +82,10 @@
   "sentiment-analysis/defaketive_sentiment/text_norm.py": "9aa843ccae3360f5aadba4d978cce5068a012d1866182aa9d9f61969cd0699e9",
   "sentiment-analysis/defaketive_sentiment/trained.py": "13d4327cff68837a68ec8adfc7329fe3582722a6d9c715250524765e332c05f9",
   "sentiment-analysis/defaketive_sentiment/transformer_sentiment.py": "f72d565047d05fef54d8764db945a24ebbf47b620c821fe22342eeae2fc33f03",
-  "sentiment-analysis/models/hazard_classifier_v6/defect.joblib": "6d9a4b2baa5cc64fe3a3bc63bf1694e0502b49014d83c8fc83e974947656f482",
-  "sentiment-analysis/models/hazard_classifier_v6/manifest.json": "3a28e678bda8668fe6a66acca7a49cb3d9f858ac5b856ab928bcede8102f0f10",
-  "sentiment-analysis/models/hazard_classifier_v6/safety.joblib": "fd2fdf33b7ff5476c89bacd010a61338d1ac0bd8325f30b8be248315e71db7ef",
-  "sentiment-analysis/models/reference_baselines_v1.json": "5fb5e5b44b4b2b8d02a00f1b5b6efc98f3459fd7091f9ca6597d5ec0e9930485",
+  "sentiment-analysis/models/hazard_classifier_v6/defect.joblib": "b0bd85aeb260e62fcb3e947b8e77e8b559dc7f23892a0a8431ce2334b7977f95",
+  "sentiment-analysis/models/hazard_classifier_v6/manifest.json": "be9fa0c14b531b195b3b40a84f16d94523e5ad8f9e28f047295e888604753f3c",
+  "sentiment-analysis/models/hazard_classifier_v6/safety.joblib": "54a4e341f373ba6f0d648ef62da0f0331082668062f4acf207fe7d1e84b0f65a",
+  "sentiment-analysis/models/reference_baselines_v1.json": "f91047393e84e5d956b536c39cc9d36f1494debceff27cf5618192bbff84d109",
   "sentiment-analysis/models/sentiment_onnx/xlmr_firecs_v1/manifest.json": "fccc6c1a16af8f88dc11a1d80659c926823b9883a02cdda1b097e0615f699bec",
   "sentiment-analysis/models/sentiment_onnx/xlmr_firecs_v1/model.onnx": "e04da4c268bc8ab94e27da2e0fb4206f38dadc43e9cfb52050818a5bb40c3478",
   "sentiment-analysis/models/sentiment_onnx/xlmr_firecs_v1/tokenizer.json": "27dea7a8dd6fe22d3913c719dd962f283f7bb2d91f023abf3b1e644df39ca49e",
