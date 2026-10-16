@@ -212,6 +212,50 @@ HEARSAY_BEFORE = re.compile(
 )
 
 
+# Revision r4 (16 Oct 2026; poor quality only, served under keyword rules 0.4,
+# so r2 still reproduces for the earlier measurements). Written from the
+# mistakes the adopted checker made on held-out round 10 after its single use,
+# checked on every labelled round (research/check_round12_fixes.py), and
+# adopted after one test on held-out round 12 (research/round12_test.json:
+# weighted F1 0.368 -> 0.380, precision 0.681 -> 0.773). ("r3" was a draft
+# revision of 8 Oct, dropped: research/rule_revision_3/.)
+#
+# Not kept: wider not-as-advertised patterns for a disputed charging speed
+# ("nde nman xa fast charging", "hindi past charging", "charging still isn't
+# fast", "advertised as fast charging"). 12 right and 1 wrong on the labelled
+# rounds, but on round 12 they changed no sentence (F1 0.391 both), so by the
+# pre-registered rule the served patterns stay.
+EXTRA_RULES_REVISION_04 = "r4"
+# "mabilis masira" (it broke soon) is a fault, the team's own answer on rounds
+# 1-3; only "mukhang madaling masira" (it looks like it would) is poor quality.
+_BREAKS_EASILY = next(pattern for pattern in QUALITY_PATTERNS if "mapunit" in pattern.pattern)
+QUALITY_PATTERNS_04 = tuple(pattern for pattern in QUALITY_PATTERNS if pattern is not _BREAKS_EASILY) + _compile(
+    (
+        r"(?:mukhang?|mukang|mukha|parang|halatang?|feel ko|i think|looks? like|seems?)\s+(?:[\w']+\s+){0,3}"
+        r"(?:madali|madaling|mabilis|dali|bilis)\s+(?:(?:lang|lng|na|ma|sya|siya|nya|nga)\s+){0,2}(?:sira|masira)(?!\w)",
+        r"(?:madali|madaling|mabilis|dali|bilis)\s+(?:(?:lang|lng|na|ma|sya|siya|nya|nga)\s+){0,2}"
+        r"(?:mapunit|punit|maputol|putol|matanggal|tanggal|mabura|mawala|kumupas|lumuwag|maluwag)(?!\w)",
+        # the review template's own fields: "Sound Quality:It sucks", "sound is very weak"
+        r"(?:sound|tunog|audio)\s*(?:quality)?\s*:?\s*(?:is\s+|was\s+)?(?:it\s+)?(?:sucks|super poor|so low|very low|too low|low|bad|meh|not good)(?!\w)",
+        r"(?:the\s+)?sound\s+(?:is|was)\s+(?:so|very|too)\s+(?:low|soft|weak)(?!\w)",
+        r"plastic(?:k)?y(?:\s+build)?(?!\w)",
+        # a watch that counts steps or heart rate wrongly
+        r"(?:steps?|heart ?rate|bpm|sensor|tracking)\s+(?:[\w']+\s+){0,3}(?:not|aren't|arent|isn't|isnt|doesn't|doesnt|hindi|di)\s+"
+        r"(?:[\w']+\s+){0,2}(?:accurate|sync)\w*",
+        r"(?:not|hindi|di|d)\s+(?:[\w']+\s+){0,2}accurate\s+(?:[\w']+\s+){0,8}(?:steps?|heart ?rate|bpm)(?!\w)",
+    )
+)
+# "Material:doesn't look flimsy"
+NEGATED_BEFORE_04 = re.compile(
+    NEGATED_BEFORE.pattern.replace(
+        r"(?:wala|walang|hindi|hinde|di|d|nd|ndi|no|not|without|zero|never)\s+",
+        r"(?:wala|walang|hindi|hinde|di|d|nd|ndi|no|not|without|zero|never|doesn't|doesnt|don't|dont|isn't|isnt)\s+"
+        r"(?:look\s+|looks\s+|seem\s+|feel\s+)?",
+    ),
+    re.IGNORECASE,
+)
+
+
 def not_as_described_spans(normalized: str) -> list[tuple[int, int]]:
     """Where the reviewer disputes a number, a feature or the photos."""
     spans = [
@@ -247,13 +291,16 @@ def _on_the_box(normalized: str, span: tuple[int, int], reach: int = 5) -> bool:
     return any(word in PACKAGING for word in before + after)
 
 
-def quality_spans(normalized: str) -> list[tuple[int, int]]:
+def quality_spans(normalized: str, revision: str = EXTRA_RULES_REVISION) -> list[tuple[int, int]]:
     """Where the reviewer says the product is weak, cheap, flimsy or marked."""
+    patterns, negated_before = (
+        (QUALITY_PATTERNS_04, NEGATED_BEFORE_04) if revision == EXTRA_RULES_REVISION_04 else (QUALITY_PATTERNS, NEGATED_BEFORE)
+    )
     spans = [
         found.span()
-        for pattern in QUALITY_PATTERNS
+        for pattern in patterns
         for found in pattern.finditer(normalized)
-        if not NEGATED_BEFORE.search(normalized[: found.start()])
+        if not negated_before.search(normalized[: found.start()])
         and not NEGATED_INSIDE.search(found.group(0))
         and not HEARSAY_BEFORE.search(normalized[: found.start()])
         and not CONDITION_BEFORE.search(normalized[: found.start()])
@@ -262,6 +309,6 @@ def quality_spans(normalized: str) -> list[tuple[int, int]]:
     spans += [
         found.span()
         for found in COSMETIC.finditer(normalized)
-        if not NEGATED_BEFORE.search(normalized[: found.start()]) and not _on_the_box(normalized, found.span())
+        if not negated_before.search(normalized[: found.start()]) and not _on_the_box(normalized, found.span())
     ]
     return sorted(set(spans))

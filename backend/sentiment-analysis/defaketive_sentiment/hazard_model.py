@@ -35,6 +35,7 @@ from . import hazard_taxonomy as taxonomy
 from . import text_norm
 from .extra_labels import (
     EXTRA_RULES_REVISION,
+    EXTRA_RULES_REVISION_04,
     EXTRA_TAGS,
     NOT_AS_DESCRIBED,
     QUALITY,
@@ -1047,6 +1048,11 @@ class LexiconHazardTagger:
             ),
         }
 
+    @property
+    def extra_revision(self) -> str:
+        """Which revision of the two newer labels' patterns this checker reads."""
+        return EXTRA_RULES_REVISION_04 if self.rules == "0.4" else EXTRA_RULES_REVISION
+
     def _not_as_described(self, normalized: str) -> list[tuple[int, int]]:
         """Spans where the reviewer disputes a number, a feature or the photos."""
         return not_as_described_spans(normalized)
@@ -1080,7 +1086,7 @@ class LexiconHazardTagger:
         them. Kept apart from "tags" and "terms": the badge categories, the
         keyword features and the learned models never see them."""
         terms: list[dict[str, Any]] = []
-        for category, found in ((QUALITY, quality_spans(normalized)), (NOT_AS_DESCRIBED, described)):
+        for category, found in ((QUALITY, quality_spans(normalized, self.extra_revision)), (NOT_AS_DESCRIBED, described)):
             for start, end in _merged(found):
                 where = self._raw_span((start, end), spans)
                 terms.append(
@@ -1203,7 +1209,11 @@ class HazardBadgeModel:
             hazard_version = f"{base_version}+{learned.version}{gated_rules}"
         if getattr(self.tagger, "counterfeit_rules", None):
             # The two informational labels' patterns carry their own revision.
-            revision = EXTRA_RULES_REVISION if self.tagger.counterfeit_rules == EXTRA_RULES else ""
+            revision = (
+                getattr(self.tagger, "extra_revision", EXTRA_RULES_REVISION)
+                if self.tagger.counterfeit_rules == EXTRA_RULES
+                else ""
+            )
             hazard_version = f"{hazard_version}+{self.tagger.counterfeit_rules}{revision}"
         self.model_version = (
             f"{hazard_version}+{sentiment_version}" if sentiment_version else hazard_version
