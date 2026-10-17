@@ -45,6 +45,8 @@ from .extra_labels import (
     not_as_described_spans,
     quality_spans,
 )
+from .listing_context import LISTING_CONTEXT_REVISION
+from .listing_context import review_rules as listing_review_rules
 from .model import DefaketiveSentimentModel
 from .product_badges import (
     CATEGORIES,
@@ -168,6 +170,12 @@ POWER_SUPPLY_REVISION = "f10"
 EXTRA_ADDON_FOLDER = "extra_labels_v1"
 EXTRA_ADDON_OFF = False
 _EXTRA_ADDON: dict[str, Any] = {}
+# Rules lc1 (17 Oct 2026; listing_context.py): not as advertised read with the
+# listing's title and description and with the next sentence of the review,
+# in tag_review. Read only with keyword rules 0.4 and counterfeit rules c2;
+# LISTING_CONTEXT_OFF switches them off, so tag_review reads each sentence alone
+# as before, for measurements of the sentence rules.
+LISTING_CONTEXT_OFF = False
 
 
 def _extra_addon() -> Any:
@@ -1233,6 +1241,11 @@ class LexiconHazardTagger:
         return addon.version if addon is not None else ""
 
     @property
+    def listing_context(self) -> bool:
+        """Whether tag_review reads the listing and the next sentence (rules lc1)."""
+        return not LISTING_CONTEXT_OFF and self.rules == "0.4" and self.counterfeit_rules == EXTRA_RULES
+
+    @property
     def extra_revision(self) -> str:
         """Which revision of the two newer labels' patterns this checker reads."""
         return EXTRA_RULES_REVISION_07 if self.rules == "0.4" else EXTRA_RULES_REVISION
@@ -1333,12 +1346,24 @@ class LexiconHazardTagger:
             return None
         return (min(item.raw_start for item in covering), max(item.raw_end for item in covering))
 
-    def tag_review(self, text: Any, rating: object = None) -> list[dict[str, Any]]:
+    def tag_review(
+        self, text: Any, rating: object = None, listing: Mapping[str, Any] | None = None
+    ) -> list[dict[str, Any]]:
+        """Each sentence of a review, tagged; with rules lc1 the two newer labels
+        are also read against the listing (its "name" and "description") and the
+        next sentence. A caller without a listing still gets the next-sentence part."""
+        segments = list(text_norm.segment_sentences(text))
         tagged = []
-        for index, sentence in enumerate(text_norm.segment_sentences(text)):
+        for index, sentence in enumerate(segments):
             result = self.tag_sentence(sentence, rating)
             result["index"] = index
             tagged.append(result)
+        if self.listing_context:
+            for index, labels in listing_review_rules(segments, tagged, listing).items():
+                item = tagged[index]
+                present = set(item.get("extra_tags") or []) | set(labels)
+                item["extra_tags"] = [tag for tag in EXTRA_TAGS if tag in present]
+                item["extra_context"] = {label: sorted(parts) for label, parts in labels.items()}
         return tagged
 
 
@@ -1414,6 +1439,8 @@ class HazardBadgeModel:
             addon_version = getattr(self.tagger, "extra_model_version", "")
             if addon_version:
                 hazard_version = f"{hazard_version}+{addon_version}"
+            if getattr(self.tagger, "listing_context", False):
+                hazard_version = f"{hazard_version}+{LISTING_CONTEXT_REVISION}"
         self.model_version = (
             f"{hazard_version}+{sentiment_version}" if sentiment_version else hazard_version
         )
@@ -1436,8 +1463,14 @@ class HazardBadgeModel:
     def fingerprint(self, review: object) -> str:
         return self.sentiment.fingerprint(review)
 
-    def analyze(self, review: object, rating: object = None) -> dict[str, Any]:
-        sentences = self.tagger.tag_review(review, rating)
+    def analyze(
+        self, review: object, rating: object = None, listing: Mapping[str, Any] | None = None
+    ) -> dict[str, Any]:
+        sentences = (
+            self.tagger.tag_review(review, rating, listing=listing)
+            if listing is not None and getattr(self.tagger, "listing_context", False)
+            else self.tagger.tag_review(review, rating)
+        )
         review_tags = sorted({tag for item in sentences for tag in item["tags"]})
         # The two informational labels travel beside review_tags, never inside it:
         # review_tags keeps meaning safety, defect or counterfeit wherever it is stored.
@@ -1480,10 +1513,14 @@ class HazardBadgeModel:
         }
 
     def analyze_batch(
-        self, reviews: list[object], ratings: list[object] | None = None
+        self,
+        reviews: list[object],
+        ratings: list[object] | None = None,
+        listing: Mapping[str, Any] | None = None,
     ) -> list[dict[str, Any]]:
+        """`listing` is the product all the reviews belong to (its "name" and "description")."""
         ratings = list(ratings or [None] * len(reviews))
-        return [self.analyze(review, rating) for review, rating in zip(reviews, ratings)]
+        return [self.analyze(review, rating, listing=listing) for review, rating in zip(reviews, ratings)]
 
     def summarize(
         self,

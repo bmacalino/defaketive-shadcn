@@ -23,7 +23,7 @@ import json
 import math
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any
+from typing import Any, Mapping
 
 from .model import DefaketiveSentimentModel, ModelSetupError
 from .manuscript import HybridManuscriptRiskModel
@@ -325,15 +325,30 @@ def _available_review_count(product: dict[str, Any], usable_count: int) -> int:
     return usable_count
 
 
+def _accepts(function: Any, name: str) -> bool:
+    try:
+        return name in inspect.signature(function).parameters
+    except (TypeError, ValueError):
+        return False
+
+
 def _analyze_all(
-    model: Any, texts: list[str], ratings: list[Any]
+    model: Any, texts: list[str], ratings: list[Any], listing: Mapping[str, Any] | None = None
 ) -> list[dict[str, Any]]:
-    """Analyze many reviews, using the model's batch path when it has one."""
+    """Analyze many reviews, using the model's batch path when it has one.
+
+    `listing` (the product's "name" and "description") is passed to a model that
+    reads it (rules lc1 of the hazard badge model); other models never see it.
+    """
     if not texts:
         return []
     batch = getattr(model, "analyze_batch", None)
     if callable(batch):
+        if listing is not None and _accepts(batch, "listing"):
+            return batch(texts, ratings, listing=listing)
         return batch(texts, ratings)
+    if listing is not None and _accepts(model.analyze, "listing"):
+        return [model.analyze(text, rating=rating, listing=listing) for text, rating in zip(texts, ratings)]
     return [model.analyze(text, rating=rating) for text, rating in zip(texts, ratings)]
 
 
@@ -420,6 +435,7 @@ def analyze_product_json(
             model,
             [text for _index, _comment, text in pending],
             [comment.get("rating") for _index, comment, _text in pending],
+            listing={"name": str(product.get("name") or ""), "description": str(product.get("description") or "")},
         )
 
         unique_analyses: list[dict[str, Any]] = []

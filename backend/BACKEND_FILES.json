@@ -1,10 +1,10 @@
 {
  "what": "Files copied byte for byte from the original app by scripts/sync_backend.py. Do not edit them here.",
  "original": {
-  "commit": "08bc1ca3227726281aadf69834518d71ca3e69d5",
+  "commit": "0122a33dea9bd7c475f086d6168ecff0e253d33e",
   "branch": "html-css-migration"
  },
- "copied_at": "2026-10-17T13:31:42+00:00",
+ "copied_at": "2026-10-17T15:49:39+00:00",
  "files": {
   "webapp.py": "c177fefc6818b0f309eaa53c43b33074838d7fc36033897dd8b229013677257a",
   "accounts.py": "4c3f9f804618846473d8612233540bffa0a26534eeb1d12fb6974da4ea29b609",
@@ -58,10 +58,10 @@
   "static/og.png": "54aa818d81b824ff33220c8f650c9c840ad62970fc26330ed27d38069a751ffc",
   "sentiment-analysis/defaketive_sentiment/__init__.py": "2c51e0802f6a6fceaf782eb08ffbc4176596161e1dcad6e4c03c84481039c259",
   "sentiment-analysis/defaketive_sentiment/__main__.py": "a0690992f5224fa7ee156f585e657b726d360ffdac74dece6e9ae1da619bb2b0",
-  "sentiment-analysis/defaketive_sentiment/analyze_reviews.py": "e8aa798c39d7a18cff77fd89ffb5fcd0b22be87fd6f57ea08010e4758bc7f553",
+  "sentiment-analysis/defaketive_sentiment/analyze_reviews.py": "edb875c9a8041cfada1a52a723196aafc645ba31b7538b259563b90b9ef3f43a",
   "sentiment-analysis/defaketive_sentiment/extra_labels.py": "2e3e5cffaf405a5df0c598068133757ff5846b43c76795b7395e5004c2b06561",
   "sentiment-analysis/defaketive_sentiment/hazard_learned.py": "1ff7af88ed5c979dd02b3ab9e2a872bc92f4028d38511efbf9f7f931b849213e",
-  "sentiment-analysis/defaketive_sentiment/hazard_model.py": "87f2bf3cac5a3bceb6e6669080085f75e87fb5333d1b3e1a452c60f481577bd8",
+  "sentiment-analysis/defaketive_sentiment/hazard_model.py": "e3ce175b621060d14dc7fa939f893dda2eb65ae615415624173368b7febf1cd1",
   "sentiment-analysis/defaketive_sentiment/hazard_taxonomy.py": "9a34caf591adb417f81f4dc17e06d0cfde7d5cd52de9e9fd208e336e9d7cf348",
   "sentiment-analysis/defaketive_sentiment/lexicons/hazard_parameters_v1.json": "6386ecd36f43ce8fc0bb73d7584ece4040a0eede1edf8384ebb81d6bbb754250",
   "sentiment-analysis/defaketive_sentiment/lexicons/hazard_phrase_exclusions_v1.tsv": "bbcc404373f4f2e2655945b9a89d63831ba5d16413dcd7feccb2b4a9099a8dcd",
@@ -71,6 +71,7 @@
   "sentiment-analysis/defaketive_sentiment/lexicons/segmenter_golden_v1.tsv": "bb182fcf6ff173a05c26ddf3d322cd309ba153defe60db8d34d71077ac39de20",
   "sentiment-analysis/defaketive_sentiment/lexicons/sentiment_lexicon.tsv": "9d60b4a54402f2f8cefba317dd376b0e033bd24c44ed7144cef5c0f6ac97b9ad",
   "sentiment-analysis/defaketive_sentiment/lexicons/taglish_variants_v1.tsv": "64d6814c48d375c106625ae5092cbd260a4cf302ae6aeaca4a0fd247c1013fb9",
+  "sentiment-analysis/defaketive_sentiment/listing_context.py": "3f7ae4acad411c5ac170f702fdabd86ba0aef6bb45260bd30cee2089a89ee3d0",
   "sentiment-analysis/defaketive_sentiment/manuscript.py": "05d0078e9945b33e5c097ad17bffd13f8cb81641b656aafe1926e78dfcddf10d",
   "sentiment-analysis/defaketive_sentiment/marketplace_v2.py": "f8e3a159e6bb515287dee8bd56087245fa09118db57f12dd381a2a3eb9c149c4",
   "sentiment-analysis/defaketive_sentiment/model.py": "60617ade5ca114726a8163a85ce32ce9e912bb9b3d3d44c4627a03e2d8be3d07",
@@ -88,7 +89,7 @@
   "sentiment-analysis/models/extra_labels_v1/manifest.json": "881752d22762e709739a2ee22c6037b68260f57208e43db0045dde4f8d19faaa",
   "sentiment-analysis/models/extra_labels_v1/not_as_described.joblib": "0f42335e723cf18ca22f13158d4217355a4a9ec97deb17f5c45fe0051ed4c4e9",
   "sentiment-analysis/models/extra_labels_v1/quality.joblib": "f403cae8c2790868618218b280697f172b19e0f6742cc4ba676ad313a59dc4e0",
-  "sentiment-analysis/models/reference_baselines_v1.json": "e6e4daaa744654c990d98fe40587856a5ff689901edb838e1541003918be3282",
+  "sentiment-analysis/models/reference_baselines_v1.json": "8cd16222aecf9e8cca07dc07653bac3a897b84b012b7927fb5d7fc5eedce6d86",
   "sentiment-analysis/models/sentiment_onnx/xlmr_firecs_v1/manifest.json": "fccc6c1a16af8f88dc11a1d80659c926823b9883a02cdda1b097e0615f699bec",
   "sentiment-analysis/models/sentiment_onnx/xlmr_firecs_v1/model.onnx": "e04da4c268bc8ab94e27da2e0fb4206f38dadc43e9cfb52050818a5bb40c3478",
   "sentiment-analysis/models/sentiment_onnx/xlmr_firecs_v1/tokenizer.json": "27dea7a8dd6fe22d3913c719dd962f283f7bb2d91f023abf3b1e644df39ca49e",
