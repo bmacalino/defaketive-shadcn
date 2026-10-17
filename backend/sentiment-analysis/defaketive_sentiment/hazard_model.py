@@ -135,6 +135,81 @@ NEGATION_D_04_REVISION = "f9"
 # "amoy" (smells of electricity) stands in the two words before it.
 POWER_SUPPLY_WORD = "kuryente"
 POWER_SUPPLY_REVISION = "f10"
+# Safety in full, tagging guide 1.6 (Rule 11; owner's decisions of 17 Oct 2026),
+# judged once on held-out round 14 (research/PREREGISTRATION_round14.md). Five
+# parts, each checked on and off over every labelled sentence
+# (research/check_guide16_safety.py); S1_OFF names parts switched off, for that
+# check only.
+#   heat_words      heat the word list misses: "get noticeably hot", "heat's up",
+#                   "nakaka ground", and a heat word glued to the next one by
+#                   punctuation ("umiinit...unlike"), which the word list cannot
+#                   see because the word is never folded
+#   fear            every safety word is in a guess: "baka sumabog", "it might
+#                   overheat and explode" (Rule 5)
+#   hedged          mild heat, hedged: "medyo init lang", "umiinit kunti"
+#   own_phone       the reviewer's phone heats: "umiinit yung cp ko", "my phone
+#                   overheated", with no word for the item itself; the phone
+#                   must be named as theirs ("cp ko", "my phone", "sa phone"):
+#                   "lakas pa mag init ng phone" is a phone that is the product
+#   denied          a denial with a word between: "hindi madaling uminit"
+#   comfort         heat felt on the body: "mainit sa tenga" (comfort, Rule 6)
+# Tried and not kept (research/guide16_safety_check.json): stopping the learned
+# filter from removing plain heat added 5 real reports and 25 false alarms, 22
+# of them against the team's own labels.
+# The learned add-on for poor quality and not as advertised (17 Oct 2026):
+# models/extra_labels_v1/, built by research/build_extra_labels_v1.py on the
+# design chosen on training data only (research/extra_labels_choice_v2.json)
+# and judged once on held-out round 14. It may add one of the two labels to a
+# sentence the rules r5 did not flag; it never touches the badge categories.
+# Read only with keyword rules 0.4 and counterfeit rules c2; EXTRA_ADDON_OFF
+# switches it off, for measurements of the rules alone.
+EXTRA_ADDON_FOLDER = "extra_labels_v1"
+EXTRA_ADDON_OFF = False
+_EXTRA_ADDON: dict[str, Any] = {}
+
+
+def _extra_addon() -> Any:
+    """The add-on's scorer, loaded once; None when its folder is not installed."""
+    if "scorer" not in _EXTRA_ADDON:
+        from .hazard_learned import MODELS_ROOT, LearnedHazardScorer
+
+        folder = MODELS_ROOT / EXTRA_ADDON_FOLDER
+        _EXTRA_ADDON["scorer"] = LearnedHazardScorer(folder) if (folder / "manifest.json").is_file() else None
+    return _EXTRA_ADDON["scorer"]
+
+
+SAFETY_GUIDE16_REVISION = "s1"
+S1_OFF: set[str] = set()
+SAFETY_GAPS = (
+    re.compile(
+        r"(?<!\w)(?:gets?|getting|got|becomes?|became|turns?|turning|runs?|running|goes|going)\s+"
+        r"(?:(?:very|so|too|really|quite|extremely|noticeably|super|pretty|real)\s+){0,2}hot(?!\w)"
+    ),
+    re.compile(r"(?<!\w)heat(?:s|'s|ing)?\s+up(?!\w)"),
+    re.compile(r"(?<!\w)(?:nakaka\s*ground\w*|nag\s*ga\s*ground\w*|nagga\s*ground\w*|naga\s*ground\w*|nag\s*grounded)(?!\w)"),
+    re.compile(r"(?<!\w)(?:umiinit|uminit|nag\s*iinit|nainit|iinit)(?=[^\s\w]+[a-z])"),
+)
+SAFETY_GAP_SEVERITY = (2, 2, 3, 2)
+FEAR_WORDS = frozenset({"baka", "bka", "maybe", "might", "could", "possibly", "probably"})
+# "baka pumutok yan sa sobrang init": after "sa" (or "kasi") the heat is the cause, not the guess.
+FEAR_ENDS = frozenset({"sa", "kasi", "dahil", "because", "due", "from"})
+DENIED_BEFORE = re.compile(
+    r"(?<!\w)(?:hindi|hinde|hnd|hndi|di|d|nd|nde|ndi|not|never)\s+"
+    r"(?:(?:naman|nman|nmn|po|sya|siya|xa|cya|ganun|ganon|gaano|masyado|masyadong|madaling|madali|mabilis|basta|agad|so|that|very)\s+){1,3}$"
+)
+COMFORT_AFTER = re.compile(r"^\s*(?:sa|on)\s+(?:(?:my|the|aking)\s+)?(?:tenga|tainga|ulo|katawan|balat|skin|kamay|ears?|head|body)(?!\w)")
+HEDGE_BEFORE = re.compile(
+    r"(?<!\w)(?:medyo|mejo|medjo|meju|konti|konting|kunti|kunting|kaunti|kaunting|bahagya|slightly|abit|kinda|somewhat"
+    r"|a\s+bit|a\s+little)\s+(?:[\w']+\s+){0,1}$"
+)
+HEDGE_AFTER = re.compile(r"^\s*(?:lang\s+)?(?:ng\s+)?(?:konti|kunti|kaunti|onti|a\s+bit|a\s+little|slightly)(?!\w)")
+HEAT_FAMILY = re.compile(r"init|heat|hot", re.IGNORECASE)
+_PHONE = r"(?:cp|cellphone|celfon|cellfone|selpon|phone|iphone|fon|fone|android)"
+OWN_PHONE = re.compile(rf"(?<!\w)(?:(?:my|aking|the|sa)\s+{_PHONE}|{_PHONE}\s+(?:ko|q|namin|nmin|natin))(?!\w)")
+THE_ITEM = re.compile(
+    r"(?<!\w)(?:charger\w*|power\s*bank\w*|adapt[oe]r\w*|cable\w*|cord\w*|wire|plug|head|ulo|unit|item|product|speaker"
+    r"|earphone\w*|headset|watch|relo|fan|keyboard|mouse|case|pwerbank|powerbank|usb)(?!\w)"
+)
 # The lexicon's own "hindi X" / "di X" failure and not-original phrases
 # (risk_lexicon.tsv: "hindi gumagana", "di gumagana", "hindi legit", "hindi
 # original"...) have the same missing-spelling gap "hinde basag" had, just
@@ -800,6 +875,8 @@ class LexiconHazardTagger:
         matches: list[dict[str, Any]] = []
         severities: dict[str, int] = {}
         safety_terms: list[str] = []
+        safety_at: list[tuple[int, int, str]] = []
+        filtered: dict[str, tuple[float, int, bool]] = {}
 
         about_the_product = not NON_PRODUCT_SUBJECT.search(normalized)
         name_spans = [
@@ -860,6 +937,7 @@ class LexiconHazardTagger:
                     severity = max(severity, term_severity)
                     if category == SAFETY:
                         safety_terms.append(term)
+                        safety_at.append((match.start(), match.end(), term))
             if total > 0:
                 scores[category] = total
                 severities[category] = severity
@@ -882,6 +960,13 @@ class LexiconHazardTagger:
                 confidence.pop(SAFETY, None)
                 severities.pop(SAFETY, None)
                 suppressed[SAFETY] = cue_class
+
+        addon = self.extra_addon
+        extra_kw = None
+        if addon is not None:
+            from .hazard_learned import keyword_features
+
+            extra_kw = keyword_features({"terms": matches, "tags": tags})
 
         learned: dict[str, float] = {}
         gated: dict[str, str] = {}
@@ -950,6 +1035,7 @@ class LexiconHazardTagger:
                     spare = getattr(self.learned, "filter_spares", {}).get(category)
                     serious = spare is not None and severities.get(category, 0) > spare
                     if not on and category in tags and not serious:
+                        filtered[category] = (scores.get(category, 0.0), severities.get(category, 0), confidence.get(category, False))
                         tags.remove(category)
                         scores.pop(category, None)
                         confidence.pop(category, None)
@@ -966,6 +1052,12 @@ class LexiconHazardTagger:
                     confidence.pop(category, None)
                     severities.pop(category, None)
             tags.sort(key=CATEGORIES.index)
+
+        if self.rules == "0.4":
+            self._safety_guide16(
+                normalized, spans, matches, tags, scores, severities, confidence, filtered, safety_at,
+                about_the_product, suppressed,
+            )
 
         described: list[tuple[int, int]] = []
         if self.counterfeit_rules in COUNTERFEIT_RULE_SETS:
@@ -1043,11 +1135,100 @@ class LexiconHazardTagger:
             **({"learned": learned} if learned else {}),
             **({"gate_sentiment": gated} if gated else {}),
             **(
-                self._extra_labels(raw, normalized, matches, described, spans)
+                self._extra_labels(raw, normalized, matches, described, spans, extra_kw)
                 if self.counterfeit_rules == EXTRA_RULES
                 else {}
             ),
         }
+
+    def _safety_guide16(
+        self,
+        normalized: str,
+        spans: Sequence[text_norm.TokenSpan],
+        matches: list[dict[str, Any]],
+        tags: list[str],
+        scores: dict[str, float],
+        severities: dict[str, int],
+        confidence: dict[str, bool],
+        filtered: dict[str, tuple[float, int, bool]],
+        safety_at: list[tuple[int, int, str]],
+        about_the_product: bool,
+        suppressed: dict[str, str],
+    ) -> None:
+        """Rules s1 (guide 1.6, Rule 11): safety words the list misses, and the
+        three readings that are not a report. Works in place on the result."""
+        if "heat_words" not in S1_OFF and SAFETY not in tags and SAFETY not in filtered:
+            for pattern, severity in zip(SAFETY_GAPS, SAFETY_GAP_SEVERITY):
+                found = pattern.search(normalized)
+                if found is None or self._is_negated(normalized, found.start()):
+                    continue
+                raw_span = self._raw_span(found.span(), spans)
+                matches.append(
+                    {"ngram": found.group(0), "category": SAFETY, "severity": severity, "negated": False,
+                     "span": list(raw_span) if raw_span else None, "rule": SAFETY_GUIDE16_REVISION}
+                )
+                safety_at.append((found.start(), found.end(), found.group(0)))
+                tags.append(SAFETY)
+                scores[SAFETY] = float(severity)
+                severities[SAFETY] = severity
+                confidence[SAFETY] = severity >= MIN_CONFIDENT_SEVERITY and about_the_product
+                tags.sort(key=CATEGORIES.index)
+                break
+        if SAFETY not in tags or not safety_at:
+            return
+
+        def fear(start: int) -> bool:
+            clause = re.split(r"[.!?;:,]", normalized[:start])[-1]
+            words = re.findall(r"[\w']+", clause)[-4:]
+            last = max((i for i, word in enumerate(words) if word in FEAR_WORDS), default=None)
+            return last is not None and not any(word in FEAR_ENDS for word in words[last + 1:])
+
+        def hedged(start: int, end: int) -> bool:
+            return bool(HEDGE_BEFORE.search(normalized[:start]) or HEDGE_AFTER.match(normalized[end:]))
+
+        def phone_heat(start: int, end: int, term: str) -> bool:
+            if not HEAT_FAMILY.search(term):
+                return False
+            near = " ".join(re.findall(r"[\w']+", normalized[:start])[-4:] + re.findall(r"[\w']+", normalized[end:])[:4])
+            return bool(OWN_PHONE.search(near)) and not THE_ITEM.search(normalized)
+
+        reason = None
+        if "denied" not in S1_OFF and all(DENIED_BEFORE.search(normalized[:start]) for start, _, _ in safety_at):
+            reason = "denied"
+        elif (
+            "comfort" not in S1_OFF
+            and severities.get(SAFETY, 0) <= MILD_HEAT_MAX_SEVERITY
+            and all(COMFORT_AFTER.match(normalized[end:]) for _, end, _ in safety_at)
+        ):
+            reason = "comfort"
+        elif "fear" not in S1_OFF and all(fear(start) for start, _, _ in safety_at):
+            reason = "fear"
+        elif (
+            "hedged" not in S1_OFF
+            and severities.get(SAFETY, 0) <= MILD_HEAT_MAX_SEVERITY
+            and all(hedged(start, end) for start, end, _ in safety_at)
+        ):
+            reason = "hedged_warmth"
+        elif "own_phone" not in S1_OFF and all(phone_heat(start, end, term) for start, end, term in safety_at):
+            reason = "own_phone"
+        if reason:
+            tags.remove(SAFETY)
+            scores.pop(SAFETY, None)
+            severities.pop(SAFETY, None)
+            confidence.pop(SAFETY, None)
+            suppressed[SAFETY] = reason
+
+    @property
+    def extra_addon(self) -> Any:
+        """The learned add-on of the two newer labels, when this checker reads it."""
+        if EXTRA_ADDON_OFF or self.rules != "0.4" or self.counterfeit_rules != EXTRA_RULES:
+            return None
+        return _extra_addon()
+
+    @property
+    def extra_model_version(self) -> str:
+        addon = self.extra_addon
+        return addon.version if addon is not None else ""
 
     @property
     def extra_revision(self) -> str:
@@ -1082,6 +1263,7 @@ class LexiconHazardTagger:
         matches: Sequence[Mapping[str, Any]],
         described: Sequence[tuple[int, int]],
         spans: Sequence[text_norm.TokenSpan],
+        extra_kw: Any = None,
     ) -> dict[str, Any]:
         """The two labels of guide 1.4 for one sentence, with the words behind
         them. Kept apart from "tags" and "terms": the badge categories, the
@@ -1104,7 +1286,17 @@ class LexiconHazardTagger:
                 continue
             terms.append({"ngram": match["ngram"], "category": NOT_AS_DESCRIBED, "span": span})
         present = {term["category"] for term in terms}
-        return {"extra_tags": [tag for tag in EXTRA_TAGS if tag in present], "extra_terms": terms}
+        added: dict[str, float] = {}
+        addon = self.extra_addon
+        if addon is not None and extra_kw is not None:
+            for category, (on, probability) in addon.decide(normalized, extra_kw, None).items():
+                if on and category not in present:
+                    present.add(category)
+                    added[category] = round(probability, 4)
+        return {
+            "extra_tags": [tag for tag in EXTRA_TAGS if tag in present], "extra_terms": terms,
+            **({"extra_learned": added} if added else {}),
+        }
 
     @staticmethod
     def _spec_claim(raw: str, match: Mapping[str, Any]) -> bool:
@@ -1203,6 +1395,7 @@ class HazardBadgeModel:
                 + BATTERY_DURABILITY_PRAISE_REVISION_2
                 + NEGATION_D_04_REVISION
                 + POWER_SUPPLY_REVISION
+                + SAFETY_GUIDE16_REVISION
             )
         hazard_version = base_version
         if learned is not None:
@@ -1216,6 +1409,9 @@ class HazardBadgeModel:
                 else ""
             )
             hazard_version = f"{hazard_version}+{self.tagger.counterfeit_rules}{revision}"
+            addon_version = getattr(self.tagger, "extra_model_version", "")
+            if addon_version:
+                hazard_version = f"{hazard_version}+{addon_version}"
         self.model_version = (
             f"{hazard_version}+{sentiment_version}" if sentiment_version else hazard_version
         )

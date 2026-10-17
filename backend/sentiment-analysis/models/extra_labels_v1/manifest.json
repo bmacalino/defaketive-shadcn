@@ -1,0 +1,83 @@
+{
+ "version": "extra-labels-1.0.0",
+ "built_at": "2026-10-16T17:02:35+00:00",
+ "what": "Learned add-on for poor quality and not as advertised: adds the label where rules r5 did not, above its threshold.",
+ "chosen_by": "research/train_extra_labels_v2.py (research/extra_labels_choice_v2.json)",
+ "keyword_rules": "0.4",
+ "extra_rules": "r5",
+ "bar": 0.95,
+ "written_sets": [
+  "v1",
+  "v2",
+  "v3"
+ ],
+ "real_sentences": 8640,
+ "written_sentences": 3676,
+ "keyword_files": {
+  "risk_lexicon.tsv": "c5caeb36c9b7e72239f8f1d3c11ea1484d1a5d6fde2ca0c6a9c6b8ece7ed8a0a",
+  "safety_false_friends_v1.tsv": "9754b41c50112893e9a3fa007921dc8b2317b78381dc3ffa32d3ce2db1ad918a",
+  "hazard_phrase_exclusions_v1.tsv": "bbcc404373f4f2e2655945b9a89d63831ba5d16413dcd7feccb2b4a9099a8dcd"
+ },
+ "categories": {
+  "quality": {
+   "file": "quality.joblib",
+   "sha256": "f403cae8c2790868618218b280697f172b19e0f6742cc4ba676ad313a59dc4e0",
+   "threshold": 0.926,
+   "combine": "decide",
+   "validation": {
+    "sentences": 1745,
+    "reports": 200,
+    "added": 12,
+    "added_right": 12,
+    "rules_alone": {
+     "tp": 122,
+     "fp": 13,
+     "fn": 78,
+     "precision": 0.9037,
+     "recall": 0.61,
+     "f1": 0.7284
+    },
+    "rules_or_model": {
+     "tp": 134,
+     "fp": 13,
+     "fn": 66,
+     "precision": 0.9116,
+     "recall": 0.67,
+     "f1": 0.7723
+    }
+   },
+   "training_sentences": 10571,
+   "training_reports": 1656
+  },
+  "not_as_described": {
+   "file": "not_as_described.joblib",
+   "sha256": "0f42335e723cf18ca22f13158d4217355a4a9ec97deb17f5c45fe0051ed4c4e9",
+   "threshold": 0.963,
+   "combine": "decide",
+   "validation": {
+    "sentences": 1745,
+    "reports": 136,
+    "added": 3,
+    "added_right": 3,
+    "rules_alone": {
+     "tp": 79,
+     "fp": 5,
+     "fn": 57,
+     "precision": 0.9405,
+     "recall": 0.5809,
+     "f1": 0.7182
+    },
+    "rules_or_model": {
+     "tp": 82,
+     "fp": 5,
+     "fn": 54,
+     "precision": 0.9425,
+     "recall": 0.6029,
+     "f1": 0.7354
+    }
+   },
+   "training_sentences": 10571,
+   "training_reports": 1220
+  }
+ }
+}
