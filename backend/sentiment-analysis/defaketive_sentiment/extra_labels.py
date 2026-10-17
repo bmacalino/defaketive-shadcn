@@ -383,15 +383,199 @@ NEGATED_BEFORE_05 = re.compile(
 )
 
 
+# Revision r6 (17 Oct 2026): both labels, the everyday wordings the served
+# patterns and the learned add-on missed. Written after held-out round 15 was
+# drawn, from the misses of the served checker on the training rounds (1-14,
+# round 14 joining after its single use). Each group is checked on and off over
+# every labelled sentence (research/check_r6_rules.py) and judged once on
+# held-out round 15 (research/PREREGISTRATION_round15.md). R6_OFF names groups
+# switched off, for that check only. Tried and not kept (under 70 in 100 of
+# their added flags right): "sobrang liit" and other size words (praise as
+# often as a complaint), dirt and dust on arrival, a missing remote (an
+# accessory, Rule 1), "palpak" alone (as often said of the seller) and "quick
+# charging lang" (no claim named). Taken out after the check: number and
+# charging patterns with "fake" in them ("fake fast charger", "fake na
+# 20, 000mah"), which moved real possible-fake reports out of that label.
+EXTRA_RULES_REVISION_06 = "r6"
+# "20, 000mah": the normalizer leaves a space after a thousands comma.
+_NUM_06 = r"(?:\d{1,3}(?:,\s?\d{3})+|\d[\d,.]*)"
+R6_QUALITY_GROUPS: dict[str, tuple[re.Pattern[str], ...]] = {
+    "noise": _compile(
+        (
+            r"noisy(?!\s+(?:places?|environments?|areas?|rooms?|streets?|surroundings?|backgrounds?|kids|neighbou?rs?))",
+            r"noise level\s*:\s*(?:noisy|loud|high|maingay|malakas)",
+            r"(?:static|grounded|hissing|buzzing)\s+(?:noise|sound)",
+        )
+    ),
+    # weak air, sound, magnet or picture, said without the served words
+    "weak_output": _compile(
+        (
+            r"(?:not|isn't|isnt|wasn't|wasnt|doesn't feel|does not feel|doesnt feel)\s+(?:(?:that|so|very|really|as|quite)\s+)?strong(?!\w)",
+            r"(?:hindi|hinde|di|d|nd|ndi|hnd)\s+(?:(?:sya|siya|xa|ganong|ganun|ganon|gaanong|kasing|masyadong|masyado|po|naman)\s+){1,3}(?:ka)?lakas",
+            # "di ko ramdam yung bigat" (I do not feel its weight) is praise
+            r"(?:di|hindi|hinde|d|hnd)\s+(?:(?:mo|ko|po|naman|nman|halos)\s+){0,2}(?:ramdam|maramdaman|mafeel)(?!\w)"
+            r"(?!\s+(?:(?:yung|ang|ung|ng)\s+)?(?:bigat|weight|init))",
+            r"can'?t\s+(?:really\s+)?feel\s+(?:it|the\s+(?:air|wind|breeze|cold))",
+            r"(?<!not )(?<!not too )weak(?!\w)(?!\s+(?:charg\w*|battery|signal|spot|points?))",
+            r"(?:lacks?|lacking|kulang (?:ng|sa)|walang (?:kahit )?(?:konting |kunting )?)\s*bass",
+            r"(?:low|soft)\s+(?:sound|sounds|volume|audio)(?:\s+system)?(?!\w)",
+            r"sounds?\s+(?:really\s+|so\s+|very\s+|too\s+)?low",
+            rf"(?:audio|sound|voice|mic|cam|camera|picture|video|screen|display|boses|tunog)\s+{_FILL}{{0,2}}(?:is\s+|was\s+)?"
+            r"(?:not|hindi|di)\s+(?:so\s+|very\s+|too\s+|that\s+)?(?:clear|cleae|malinaw)",
+            r"(?:not|di|hindi)\s+(?:so\s+|very\s+|too\s+)?clear\s+(?:na\s+)?(?:cam|camera|audio|sound|voice|picture)",
+            r"(?:muffled|kulob|parang bulong|clouded)",
+        )
+    ),
+    # guide 1.5: an expectation with no claim named is poor quality
+    "expectation": _compile(
+        (
+            r"(?:expected|expecting|i expect|nag ?expect)\s+(?:(?:it|it to|to|na|ako|sana|have|be|a)\s+){0,3}(?:more|better|mas)\s+"
+            r"(?:power|bass|volume|lakas|malakas|quality|sound|durability|hangin|strong\w*|loud\w*)",
+            r"not as (?:strong|loud|good|malakas) as (?:i\s+)?expect\w*",
+        )
+    ),
+    "cheap_build": _compile(
+        (
+            r"plastikk?y",
+            r"(?:looks?|feels?|mukhang|mukang)\s+(?:so\s+|very\s+|really\s+|super\s+)?cheap(?!\w)",
+            r"cheap\s+(?:sound|feel|feeling|build)",
+            r"(?:not|poorly|badly)\s+(?:well\s+)?made(?!\w)",
+            r"(?:too|so|very|super)\s+thin(?!\w)",
+            r"thin\s+(?:wires?|cables?|cords?|materials?|threads?|plastic)",
+            r"stiff(?!\w)|matigas\s+(?:ang\s+|yung\s+|ung\s+)?(?:click|pindot\w*|buttons?|keys?|scroll)",
+            r"(?:not|hindi|di)\s+(?:so\s+|very\s+)?(?:smooth|madulas)(?!\w)",
+            r"(?:ma)?hirap\s+(?:(?:pa|lang|rin|din|mag|nyang|niyang|sya|siya)\s+){0,2}"
+            r"(?:pindutin|pindot|i ?switch|buksan|i ?bluetooth|ipair|i ?pair|mag ?type|idrive|i ?drive|i ?press)",
+            r"(?:hard|difficult|challenging)\s+to\s+(?:press|pair|click|configure|insert)",
+        )
+    ),
+    "loose_fit": _compile(
+        (
+            r"loose(?!\s+(?:connection|contact|wires?))",
+            r"maluwag(?!\w)",
+            r"(?:natatanggal|natatangal|nagdedetach|nagluloose|detach(?:es)?\s+easily|disassembles?\s+easily)",
+            r"(?:umuuga|nabubuwal|natutumba|tumutumba|wobbles?)",
+        )
+    ),
+    "verdict_more": _compile(
+        (
+            r"(?:not reliable|unreliable|unrelible|unrealible)",
+            r"quality\s*(?:check)?\s*:?\s*(?:failed|fail)(?!\w)",
+            r"lo quality",
+            r"(?:di|hindi)\s+(?:ka)?gandahan\s+(?:yung\s+|ang\s+|ung\s+)?quality",
+            r"hindi magandang klase",
+            r"quality\s+(?:of\s+(?:the\s+)?(?:item|product|cable)\s+)?(?:is|are|was)\s+not\s+(?:quite\s+|so\s+|that\s+|very\s+|as\s+)?good",
+            r"(?:audio|sound|mic)\s+(?:and\s+(?:sound|mic|audio)\s+)?quality\s+(?:is|are|was)\s+(?:not good|poor|bad|the worst|worst|terrible)",
+            r"disappointed (?:with|in|by) the quality",
+        )
+    ),
+    "audio_more": _compile(
+        (
+            r"(?:ampanget|ampangit|ang ?panget|ang ?pangit)\s+(?:ng\s+)?(?:tunog|mic|sound|boses|tone)",
+            rf"delay(?:ed)?\s+{_FILL}{{0,2}}sounds",
+            rf"(?:laro|games?|gaming|videos?|movies?)\s+{_FILL}{{0,2}}(?:delay|late)(?!\w)",
+            r"(?:mas malakas|louder)\s+(?:yung\s+|ang\s+|the\s+)?(?:left|right)",
+            r"(?:left|right)\s+(?:ear\s*)?(?:pod|piece|side|earbud)?\s*has more bass",
+            r"(?:basag|sabog)\s+(?:ang|yung|ung|na)\s+(?:speaker|boses|bosses|bosis|tugtog|music|audio)",
+        )
+    ),
+}
+R6_NAD_GROUPS: dict[str, tuple[re.Pattern[str], ...]] = {
+    # the review names the listing, its ad, its pictures or its details, and disputes them
+    "listing_named": _compile(
+        (
+            r"wrong(?:ly)?\s+advertis\w*",
+            r"(?:pagkaka|pagka)\s*advertis\w*",
+            r"(?:doesn'?t|does not|don'?t|didn'?t|did not|won'?t|cannot|can'?t|not|never|hindi|di|wala|walang|no)\s+(?:[\w']+\s+){0,7}?"
+            r"(?:as|like|unlike|sa)\s+(?:(?:what\s+)?(?:was|is|it\s+was|they|it'?s)\s+)?"
+            r"(?:advertised|advertized|stated|described|promised|indicated|posted|listed|shown|written)(?!\w)",
+            r"(?:unlike|contrary to)\s+(?:what\s+)?(?:was\s+|is\s+|they\s+)?(?:advertised|stated|described|posted|indicated|written|shown|listed)",
+            r"despite\s+(?:it\s+|its\s+)?(?:being\s+)?(?:advertised|stated|listed|described)",
+            r"(?:sabi|sabe|nakalagay|naka lagay|nkalagay|nka lagay|stated|says|said|indicated)\s+(?:(?:po|naman|nila|nyo|niyo|dito|kasi)\s+)?(?:sa|in|on)\s+"
+            r"(?:the\s+|their\s+|your\s+|inyong\s+|yung\s+|ang\s+)?(?:advertisement|ad|ads|post|description|discription|picture|pic|photos?|box|manual"
+            r"|caption|title|listing|product (?:details|information|description)|page)(?!\w)"
+            # the listing cited to confirm it
+            r"(?!.*(?:totoo naman|tama naman|legit naman|true naman|accurate naman|satisfied))",
+            r"(?:hindi|di|not|doesn'?t|does not)\s+(?:[\w']+\s+){0,2}(?:tugma|match(?:es)?|totoo|true|accurate|aligned?|align|angkop)\s+"
+            r"(?:(?:sa|ang|with|to|yung|ung|the)\s+){1,2}(?:[\w']+\s+){0,2}"
+            r"(?:description|discription|pic|pics|picture|pictures|photos?|specs?|details|information|info|listing|ads?|advertisement|post)(?!\w)",
+            r"(?:true|honest)\s+(?:to|sa)\s+(?:the\s+|your\s+|inyong\s+|ang\s+)?(?:product\s+)?(?:details|description|specs|ads?|post|listing)",
+            r"(?:description|picture|photo|ads?)\s+(?:versus|vs\.?)\s+reality|(?:expecting|expected)\s+vs\.?\s+reality",
+            r"(?:different|off)\s+from\s+what\s+(?:(?:is|was)|the\s+\w+\s+(?:is|was))\s+(?:listed|shown|showing|posted|stated|advertised|described)",
+            r"not\s+(?:like\s+)?what(?:'s|s| is| was)?\s+(?:written|posted|indicated|stated|shown|listed|advertised|in the (?:specs|description|picture))",
+            r"not\s+whats?\s+in\s+(?:the\s+)?specs",
+            r"(?:edit|palitan|change|pakiedit|update)\s+(?:(?:ng|ang|yung|nyo|niyo|po|the|your|item)\s+){0,3}"
+            r"(?:caption|description|item description|pictures?|title|product name)",
+            r"(?:deceptive|deceiving|deception)",
+        )
+    ),
+    # a stated number doubted or denied, in wordings the served patterns miss
+    "number_doubt": _compile(
+        (
+            rf"not\s+actually\s+(?:a\s+)?{_NUM_06}",
+            rf"(?:hindi|di|not)\s+(?:(?:siya|sya|xa|cia|naman|po|ito|to)\s+){{0,2}}(?:talaga(?:ng)?|tlga|totoong|legit\s+na|really|actually)\s+{_NUM_06}",
+            rf"(?:don'?t|dont|do not)\s+(?:think|believe)\s+(?:that\s+)?(?:it'?s|its|it is|this is)?\s*(?:actually\s+|really\s+|talaga(?:ng)?\s+)?{_NUM_06}\s*{_UNIT}",
+            rf"(?:parang|mukhang|mukang)\s+(?:hindi|di)\s+(?:(?:sya|siya|xa|ito|to)\s+)?{_NUM_06}\s*{_UNIT}",
+            rf"(?:to think na|to think that|considering|although|despite(?:\s+it)?(?:\s+being)?|even though it'?s)\s+(?:(?:it'?s|its|sya|siya)\s+)?{_NUM_06}\s*{_UNIT}",
+            rf"(?:the\s+)?{_NUM_06}\s*{_UNIT}\s+(?:is|na|ay)\s+(?:false|scam|not true)",
+            rf"(?:sabi|sabe|nakalagay|naka lagay|nkalagay|nka lagay|description|stated|advertised|akala ko|kala ko|akala q|kala q|i thought(?: of| that)?)\s+"
+            rf"{_FILL}{{0,4}}{_NUM_06}\s*{_UNIT}(?!\w)",
+            rf"{_NUM_06}\s*{_UNIT}\s+(?:(?:po|lang|daw)\s+)?(?:nakalagay|naka lagay|nkalagay|nka lagay|sa box|on the box|sa kahon)",
+            r"(?:nakalagay|naka lagay|nkalagay)\s+(?:(?:sa\s+(?:box|kahon)|po|naman)\s+)?\d{4,}",
+            rf"(?:never|not)\s+(?:a\s+|the\s+)?(?:full\s+)?capacity\s+of\s+{_NUM_06}",
+            rf"capacity\s+(?:is|was)\s+(?:just|only)\s+(?:around\s+|about\s+)?{_NUM_06}",
+            rf"(?:sabi|sabe|nakalagay|nklagay|nka lagay|naka lagay|akala ko|kala ko|advertis\w*|stated|says?)\s+{_FILL}{{0,4}}(?:up to\s+)?{_NUM_06}\s*(?:hours?|hrs?)(?!\w)",
+            rf"far\s+from\s+{_NUM_06}",
+            rf"disguised\s+as\s+(?:a\s+)?{_NUM_06}",
+        )
+    ),
+    # "20kmAh ?": a stated number asked back
+    "number_question": _compile((rf"{_NUM_06}\s*{_UNIT}\s*\?",)),
+    # guide 1.5: a charging claim denied, in wordings charging_claim (r5) misses
+    "charging_more": _compile(
+        (
+            r"not\s+(?:so|super|really|that|very|even)\s+(?:fast|quick)(?:\s+charg\w*)?(?!\w)"
+            r"(?!\s+(?:delivery|shipping|ship|deliver\w*|shipment|response|reply|air|blow\w*|wind|hangin))",
+            r"charg\w*\s*(?:speed)?\s*:?\s*(?:is\s+|was\s+)?not\s+(?:so\s+|super\s+|really\s+|that\s+|very\s+)?fast",
+            r"not\s+charg\w*\s+fast",
+            r"(?:no|wala(?:ng)?)\s+fast\s+charg\w*(?!\w)(?!\s+(?:needed|required|necessary))",
+            r"fast\s+charg\w*\s+(?:is\s+|was\s+|feature\s+)?(?:not working|doesn'?t work|does not work|hindi gumagana|di gumagana)",
+            r"(?:hindi|di|hind|not)\s+(?:legit|totoo|totoong|true)\s+(?:na\s+)?(?:fast|pas|past)\s*charg\w*",
+            r"(?:doesn'?t|does not|don'?t|won'?t|not|hindi|di|cannot|can'?t)\s+(?:(?:support|activate|reach|do|give|compatible|with)\w*\s+){1,2}"
+            r"(?:(?:the|with|sa|ng|yung)\s+)?(?:mi\s+|xiaomi\s+|\"mi\s+)?(?:turbo|dart|super ?vooc|vooc|warp|super ?charg\w*|\d+\s*w(?:atts?)?)(?!\w)",
+            r"(?:not|hindi|di)\s+(?:xiaomi\s+)?\"?(?:mi\s+)?(?:turbo|dart)(?!\w)",
+            r"(?:slow|mabagal)\s+(?:charg\w*\s+)?(?:despite|even though|although)",
+            r"so\s*called\s+fast\s+charg\w*",
+            r"(?:akala ko|kala ko|i thought)\s+(?:[\w']+\s+){0,3}(?:mi\s+)?(?:turbo|fast|super ?fast|dart|vooc)\s*charg\w*",
+        )
+    ),
+    # a feature the product is sold by, absent
+    "feature_absent": _compile(
+        (
+            r"(?:walang|wala\s+(?:sya|syang|siyang|po|pong|naman|itong)|there is no|there'?s no|without|no)\s+(?:(?:active|actual|real)\s+)?"
+            r"(?:noise ?cancel\w*|anc|enc|anr|flash ?light|blue ?light|sensor|wireless charg\w*|magsafe)(?!\w)(?!\s+(?:issues?|problems?|problema))",
+            r"(?:is\s+|it'?s\s+)?not\s+(?:an?\s+)?(?:anr|anc|active noise\w*)(?!\w)",
+        )
+    ),
+}
+R6_OFF: set[str] = set()
+
+
 def _r5_patterns(groups: dict[str, tuple[re.Pattern[str], ...]]) -> tuple[re.Pattern[str], ...]:
     return tuple(pattern for name, patterns in groups.items() if name not in R5_OFF for pattern in patterns)
+
+
+def _r6_patterns(groups: dict[str, tuple[re.Pattern[str], ...]]) -> tuple[re.Pattern[str], ...]:
+    return tuple(pattern for name, patterns in groups.items() if name not in R6_OFF for pattern in patterns)
 
 
 def not_as_described_spans(normalized: str, revision: str = EXTRA_RULES_REVISION) -> list[tuple[int, int]]:
     """Where the reviewer disputes a number, a feature or the photos."""
     patterns = NOT_AS_DESCRIBED_PATTERNS
-    if revision == EXTRA_RULES_REVISION_05:
+    if revision in (EXTRA_RULES_REVISION_05, EXTRA_RULES_REVISION_06):
         patterns = patterns + _r5_patterns(R5_NAD_GROUPS)
+    if revision == EXTRA_RULES_REVISION_06:
+        patterns = patterns + _r6_patterns(R6_NAD_GROUPS)
     spans = [
         found.span()
         for pattern in patterns
@@ -430,9 +614,11 @@ def quality_spans(normalized: str, revision: str = EXTRA_RULES_REVISION) -> list
     patterns, negated_before = (
         (QUALITY_PATTERNS_04, NEGATED_BEFORE_04) if revision == EXTRA_RULES_REVISION_04 else (QUALITY_PATTERNS, NEGATED_BEFORE)
     )
-    if revision == EXTRA_RULES_REVISION_05:
+    if revision in (EXTRA_RULES_REVISION_05, EXTRA_RULES_REVISION_06):
         patterns = QUALITY_PATTERNS_04 + _r5_patterns(R5_QUALITY_GROUPS)
         negated_before = NEGATED_BEFORE_04 if "negation" in R5_OFF else NEGATED_BEFORE_05
+    if revision == EXTRA_RULES_REVISION_06:
+        patterns = patterns + _r6_patterns(R6_QUALITY_GROUPS)
     spans = [
         found.span()
         for pattern in patterns
@@ -443,7 +629,8 @@ def quality_spans(normalized: str, revision: str = EXTRA_RULES_REVISION) -> list
         and not CONDITION_BEFORE.search(normalized[: found.start()])
         and not ("hina" in found.group(0).casefold() and CHARGING_AFTER.match(normalized[found.end():]))
     ]
-    cosmetic = (COSMETIC, R5_COSMETIC) if revision == EXTRA_RULES_REVISION_05 and "cosmetic" not in R5_OFF else (COSMETIC,)
+    later = revision in (EXTRA_RULES_REVISION_05, EXTRA_RULES_REVISION_06)
+    cosmetic = (COSMETIC, R5_COSMETIC) if later and "cosmetic" not in R5_OFF else (COSMETIC,)
     spans += [
         found.span()
         for regex in cosmetic
