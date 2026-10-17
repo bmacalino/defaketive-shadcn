@@ -1,7 +1,7 @@
 {
  "version": "reference-baselines-2.0.0",
- "built_at": "2026-10-17T10:35:23+00:00",
- "measured_with": "defaketive-hazard-lexicon-0.3.0+rules0.4g1n1f1f2f3f4f5f6f7f8f9f10s1+hazard-learned-6.0.0-safety-defect-34a2ad69+r1b+c2r6+extra-labels-1.0.0-quality-not_as_described-f8d08961+defaketive-xlmr-firecs-v1-onnx-int8-e04da4c2",
+ "built_at": "2026-10-17T13:27:52+00:00",
+ "measured_with": "defaketive-hazard-lexicon-0.3.0+rules0.4g1n1f1f2f3f4f5f6f7f8f9f10s1+hazard-learned-6.0.0-safety-defect-34a2ad69+r1b+c2r7+extra-labels-1.0.0-quality-not_as_described-f8d08961+defaketive-xlmr-firecs-v1-onnx-int8-e04da4c2",
  "source": "research/build_reference_baselines.py (research/reference_baselines_feed_report.json)",
  "note": "Median flagged-review rate over gadget listings scanned from Lazada's review feed as the app scans them, star-weighted. In the checker's own units, and for whole review text: rebuild when the checker or the review source changes.",
  "default_product_type": "gadget",

@@ -38,6 +38,7 @@ from .extra_labels import (
     EXTRA_RULES_REVISION_04,
     EXTRA_RULES_REVISION_05,
     EXTRA_RULES_REVISION_06,
+    EXTRA_RULES_REVISION_07,
     EXTRA_TAGS,
     NOT_AS_DESCRIBED,
     QUALITY,
@@ -1234,7 +1235,7 @@ class LexiconHazardTagger:
     @property
     def extra_revision(self) -> str:
         """Which revision of the two newer labels' patterns this checker reads."""
-        return EXTRA_RULES_REVISION_06 if self.rules == "0.4" else EXTRA_RULES_REVISION
+        return EXTRA_RULES_REVISION_07 if self.rules == "0.4" else EXTRA_RULES_REVISION
 
     def _not_as_described(self, normalized: str) -> list[tuple[int, int]]:
         """Spans where the reviewer disputes a number, a feature or the photos."""

@@ -561,6 +561,118 @@ R6_NAD_GROUPS: dict[str, tuple[re.Pattern[str], ...]] = {
 R6_OFF: set[str] = set()
 
 
+# Revision r7 (17 Oct 2026): both labels, more everyday wordings, and two r6
+# mistakes. Written after held-out round 16 was drawn, from the misses and
+# false flags of the served checker (r6) on the training rounds 1-15 (round 15
+# joining after its single use). Each group is checked on and off over every
+# labelled sentence (research/check_r7_rules.py) and judged once on held-out
+# round 16 (research/PREREGISTRATION_round16.md). R7_OFF names parts switched
+# off, for that check only: the groups below, "thin" (r6's "very thin", said in
+# praise of a slim power bank, narrowed) and "negation" (the denial guard reads
+# "wasn't that noisy"). Tried and not kept: a feature said to be absent
+# ("walang bluetooth", "no display"; as often a fault or a missing part) and
+# "not type C" (a wrong part sent, Rule 1).
+# Judged once on held-out round 16 (research/round16_test.json): the
+# poor-quality parts adopted (weighted F1 0.622 -> 0.627); the not-as-advertised
+# groups NOT adopted (0.507 -> 0.500: their one change on the round was a false
+# flag, "legit naman based on the specs in the ad"). R7_NAD_GROUPS stay below
+# for the record and are not read; r7 reads not as advertised as r6 does.
+EXTRA_RULES_REVISION_07 = "r7"
+R7_QUALITY_GROUPS: dict[str, tuple[re.Pattern[str], ...]] = {
+    "sound_more": _compile(
+        (
+            r"no\s+bass(?!\w)|(?:need|needs|kulang)\s+(?:(?:more|ng|pa|meron)\s+){0,2}bass",
+            r"(?:has|may|with|meron(?:g)?)\s+(?:(?:a|some|konting|kunting)\s+)?(?:static|echo|hissing|humming|ugong|feed ?back)(?!\w)",
+            r"humming(?!\w)",
+            r"(?:matinis|garal gal|ngungu|trumpeta|tumpag)(?!\w)",
+            r"not as (?:loud|strong|clear|good|fast|malakas) (?:as )?(?:i|we) (?:wanted|hoped|thought|expected)",
+            r"(?:sound|tunog)\s+(?:is\s+)?not\s+even|uneven\s+(?:sound|volume)",
+            r"(?:mura|cheap)\s+(?:(?:din|dn|rin|rn|ang|yung)\s+)?(?:tunog|sound)(?!s)",
+            rf"baliktad\s+{_FILL}{{0,3}}(?:left|right|sound|tunog)|(?:right|left)\s+(?:and\s+(?:left|right)\s+)?(?:speakers?|sound)\s+(?:are|is)\s+(?:wrong|reversed|swapped)",
+        )
+    ),
+    "fit_more": _compile(
+        (
+            r"maluwang\s+(?:(?:sya|siya|po|na|ang|yung|ung|sa|siya sa|sya sa)\s+){0,2}(?:[\w']+\s+){0,1}(?:phone|cp|tenga|tainga|ears?|outlet|socket|port|usb|plug|cord|case|kamay|ulo|head)",
+            r"(?:phone|cp|plug|port|usb|socket|clip|saksakan|pangsaksak|jack)\s+(?:[\w']+\s+){0,2}maluwang(?!\w)",
+            r"(?:if|kung)\s+(?:you\s+have|may)\s+(?:tiny|small|maliit na)\s+ears|(?:i\s+(?:do\s+)?have|may)\s+(?:big|malaki(?:ng)?)\s+(?:ears|tenga)",
+            r"(?:not|hindi|di)\s+(?:very\s+|so\s+)?tight\s+(?:in|sa)(?!\w)",
+            r"(?:don'?t|do not|doesn'?t|does not|hindi|di)\s+(?:[\w']+\s+)?fit\s+(?:in|sa)\s+(?:the\s+)?(?:plugs?|ports?|outlet|socket|phone|case)",
+        )
+    ),
+    "template_more": _compile(
+        (
+            r"(?:speed settings?|ease of use|ergonomics|design|appearance|portability|noise level|connectivity|connection speed)\s*[:：]\s*"
+            r"(?:[\w']+\s+){0,2}?(?:[0-4](?:\.\d)?\s*/\s*10|[0-2](?:\.\d)?\s*/\s*5)(?!\d)",
+            r"(?:speed settings?|ease of use|portability|design|connectivity|connection speed)\s*[:：]\s*(?:is\s+|very\s+)?"
+            r"(?:poor|bad|meh|not good|pangit|panget|mahina|terrible)(?!\w)",
+        )
+    ),
+    "weak_more": _compile(
+        (
+            r"(?:hindi|di|d|hinde)\s+(?:(?:sya|siya|naman|nmn|nman|po)\s+)?(?:gnun|gaano|gano|ganong|ganun|ganon)\s+(?:ka)?(?:lakas|malakas|mahangin|lamig|malamig)",
+            r"(?:di|hindi)\s+(?:(?:nman|naman|po)\s+)?malamig\s+(?:yung|ang|ung)\s+(?:hangin|hanging)",
+            r"mas malakas pa\s+(?:[\w']+\s+){6,8}(?:kesa|kaysa|than)(?!\w)",
+            r"mas malakas pa\s+(?:(?:ang|yung|ung|pag)\s+)?(?:boses|ihip|liwanag|record)\s+(?:ko|nung|ng)",
+            r"(?:nahihinaan|nahinaan)(?!\w)",
+            r"(?:short|maiksi|maikli)\s+(?:(?:lng|lang|ang)\s+)*(?:bluetooth\s+)?range|range\s+(?:is\s+)?(?:short|poor|weak)|di ok (?:ung|yung|ang) range",
+        )
+    ),
+    "cheap_more": _compile(
+        (
+            r"(?:subpar|sub par|low grade|lower quality|mababang klase)(?!\w)",
+            r"quality\s*,?\s+(?:super|very|so|sobrang)\s+(?:low|bad|poor)",
+            r"(?:it'?s\s+)?a\s+toy\s+(?:headphone|watch|speaker|fan|mouse)|laruan\s+(?:lang|lng|pa|ang dumating|na relo)",
+            r"(?:surface|material|materials|build|finish|plastic|tela|wire|cable)\s+(?:is|are|was)\s+not\s+(?:that|so|very)\s+good",
+            r"improper\s+assembly",
+        )
+    ),}
+_VERY_THIN_06 = next(p for p in R6_QUALITY_GROUPS["cheap_build"] if p.pattern.endswith(r"(?:too|so|very|super)\s+thin(?!\w))"))
+THIN_07 = _compile((r"(?:too|so)\s+thin(?!\w)", r"(?:very|super)\s+thin\s+(?:wires?|cables?|cords?|materials?|plastic|threads?)"))
+NEGATED_BEFORE_07 = re.compile(
+    NEGATED_BEFORE_05.pattern.replace(
+        r"|don't|dont|isn't|isnt|ni minsan)",
+        r"|don't|dont|isn't|isnt|wasn't|wasnt|was not|is not|aren't|arent|weren't|werent|ni minsan)",
+    ).replace(r"|or|o|at)\s+){0,5}$", r"|or|o|at|that|so|very|too|really)\s+){0,5}$"),
+    re.IGNORECASE,
+)
+R7_NAD_GROUPS: dict[str, tuple[re.Pattern[str], ...]] = {
+    "charging_r7": _compile(
+        (
+            r"(?:not|hindi|di|d|hind)\s+(?:(?:sya|siya|cia|xa|po|naman|nman|truely|truly|really|tunay|totoo|totoong|true|legit)\s+){0,3}(?:na\s+)?"
+            r"(?:fast|pass|pas|past|super)\s*(?:charg\w*|changer|changing|chrger|chager|chaeger|chargs)(?!\w)",
+            r"(?:i thought|akala ko|kala ko|kala q|akala q)\s+(?:(?:naman|nman|ba|na|sya|siya|it'?s|its|it was)\s+){0,2}(?:fast|turbo|super ?fast)(?:\s*(?:charg\w*|changer))?(?!\w)"
+            r"(?!\s+(?:delivery|shipping|ship|deliver\w*|dating|dumating|response|reply|transaction))",
+            rf"(?:don'?t|dont|do not)\s+believe\s+{_FILL}{{0,3}}fast\s*charg\w*",
+            r"(?:doesn'?t|does not|not)\s+(?:indicat\w*|show\w*|display\w*)\s+(?:(?:as|that|it'?s|its)\s+){0,2}(?:fast|turbo|super)\s*charg\w*",
+            r"not\s+(?:efficient|powerful|fast|quick)\s+power\s+output",
+            r"(?:same as|para lang(?: din)?(?: na| ng)?|just like)\s+(?:a\s+|an\s+)?(?:regular|normal|ordinary)\s+(?:na\s+)?(?:cable|charger|charging|cord)",
+            r"not\s+even\s+(?:quick|fast|medium speed|super)\s*charg\w*",
+        )
+    ),
+    "listing_r7": _compile(
+        (
+            rf"{_NUM_06}\s*{_UNIT}\s+(?:sa|in|on)\s+(?:the\s+)?(?:ads?|adds|post|picture|pic|description|video|listing|box|kahon)(?!\w)",
+            rf"(?:hindi|di)\s+(?:(?:sya|siya|ito|to|naman|po)\s+)?(?:yung|ung|ang|katulad|kagaya|gaya|tulad)\s+{_FILL}{{0,2}}(?:nasa|sa)\s+(?:larawan|litrato)",
+            rf"(?:hindi|di)\s+(?:(?:niya|nya|sya|siya)\s+)?(?:kapareha|kapareho|kamukha|katulad|kagaya)\s+{_FILL}{{0,3}}(?:nakapost|naka post|posted|post|larawan|litrato|picture|pic|photo|ads?)(?!\w)",
+            rf"nag\s*post\s+{_FILL}{{0,3}}(?:na\s+)?(?:hindi|di|wala)(?!\w)",
+            rf"(?:documentation|manual|box|label|packaging|specs?|it)\s+(?:says?|said|states?)\s+(?:that\s+)?(?:it'?s\s+|it is\s+|na\s+)?(?:a\s+)?{_NUM_06}\s*{_UNIT}(?!\w)",
+            r"specs?\s+(?:on|sa|in)\s+(?:the\s+)?(?:ads?|adds|post|description)",
+            r"expectations?\s+(?:versus|vs\.?)\s+reality",
+            r"what (?:you|u) see is not what (?:you|u) get",
+            rf"(?:sabi|ang sabi|nakalagay|naka lagay)\s+(?:(?:may|meron|ay|na|daw|po)\s+){{0,2}}{_FILL}{{0,2}}(?:free|freebies?)(?!\w)",
+            rf"(?:kahit|although|even though)\s+{_FILL}{{0,1}}(?:3|4|5)\s*in\s*1",
+        )
+    ),
+    "fake_feature": _compile(
+        (
+            r"(?:display(?: board)?|meter|read ?out|battery meter|percentage|percent)\s+(?:is\s+|nya\s+)?(?:fake|peke)|fake\s+(?:display|meter|battery meter|read ?out|percent\w*)",
+            r"(?:capacity|charging speed|output|wattage)\s*[:：]\s*(?:fake|peke|false|not true|scam)(?!\w)",
+        )
+    ),}
+R7_OFF: set[str] = set()
+
+
 def _r5_patterns(groups: dict[str, tuple[re.Pattern[str], ...]]) -> tuple[re.Pattern[str], ...]:
     return tuple(pattern for name, patterns in groups.items() if name not in R5_OFF for pattern in patterns)
 
@@ -569,12 +681,16 @@ def _r6_patterns(groups: dict[str, tuple[re.Pattern[str], ...]]) -> tuple[re.Pat
     return tuple(pattern for name, patterns in groups.items() if name not in R6_OFF for pattern in patterns)
 
 
+def _r7_patterns(groups: dict[str, tuple[re.Pattern[str], ...]]) -> tuple[re.Pattern[str], ...]:
+    return tuple(pattern for name, patterns in groups.items() if name not in R7_OFF for pattern in patterns)
+
+
 def not_as_described_spans(normalized: str, revision: str = EXTRA_RULES_REVISION) -> list[tuple[int, int]]:
     """Where the reviewer disputes a number, a feature or the photos."""
     patterns = NOT_AS_DESCRIBED_PATTERNS
-    if revision in (EXTRA_RULES_REVISION_05, EXTRA_RULES_REVISION_06):
+    if revision in (EXTRA_RULES_REVISION_05, EXTRA_RULES_REVISION_06, EXTRA_RULES_REVISION_07):
         patterns = patterns + _r5_patterns(R5_NAD_GROUPS)
-    if revision == EXTRA_RULES_REVISION_06:
+    if revision in (EXTRA_RULES_REVISION_06, EXTRA_RULES_REVISION_07):
         patterns = patterns + _r6_patterns(R6_NAD_GROUPS)
     spans = [
         found.span()
@@ -614,11 +730,17 @@ def quality_spans(normalized: str, revision: str = EXTRA_RULES_REVISION) -> list
     patterns, negated_before = (
         (QUALITY_PATTERNS_04, NEGATED_BEFORE_04) if revision == EXTRA_RULES_REVISION_04 else (QUALITY_PATTERNS, NEGATED_BEFORE)
     )
-    if revision in (EXTRA_RULES_REVISION_05, EXTRA_RULES_REVISION_06):
+    if revision in (EXTRA_RULES_REVISION_05, EXTRA_RULES_REVISION_06, EXTRA_RULES_REVISION_07):
         patterns = QUALITY_PATTERNS_04 + _r5_patterns(R5_QUALITY_GROUPS)
         negated_before = NEGATED_BEFORE_04 if "negation" in R5_OFF else NEGATED_BEFORE_05
-    if revision == EXTRA_RULES_REVISION_06:
+    if revision in (EXTRA_RULES_REVISION_06, EXTRA_RULES_REVISION_07):
         patterns = patterns + _r6_patterns(R6_QUALITY_GROUPS)
+    if revision == EXTRA_RULES_REVISION_07:
+        if "thin" not in R7_OFF:
+            patterns = tuple(pattern for pattern in patterns if pattern is not _VERY_THIN_06) + THIN_07
+        patterns = patterns + _r7_patterns(R7_QUALITY_GROUPS)
+        if "negation" not in R7_OFF:
+            negated_before = NEGATED_BEFORE_07
     spans = [
         found.span()
         for pattern in patterns
@@ -629,7 +751,7 @@ def quality_spans(normalized: str, revision: str = EXTRA_RULES_REVISION) -> list
         and not CONDITION_BEFORE.search(normalized[: found.start()])
         and not ("hina" in found.group(0).casefold() and CHARGING_AFTER.match(normalized[found.end():]))
     ]
-    later = revision in (EXTRA_RULES_REVISION_05, EXTRA_RULES_REVISION_06)
+    later = revision in (EXTRA_RULES_REVISION_05, EXTRA_RULES_REVISION_06, EXTRA_RULES_REVISION_07)
     cosmetic = (COSMETIC, R5_COSMETIC) if later and "cosmetic" not in R5_OFF else (COSMETIC,)
     spans += [
         found.span()
