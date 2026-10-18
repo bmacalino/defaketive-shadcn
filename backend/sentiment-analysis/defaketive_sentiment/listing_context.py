@@ -178,3 +178,201 @@ def review_rules(segments: list[str], tagged: list[dict], listing: dict | None) 
         if mentions and "not_as_described" not in current[i] and CONTRA_NEXT.search(b):
             add(i, "not_as_described", "context_claim")
     return added
+
+
+# Rules lc2 and lc2f (18 Oct 2026; research/PREREGISTRATION_round19.md, candidates
+# A and B), written from the training rounds whose listing is known (rounds 8,
+# 10-16 and 18) and checked part by part (research/check_round19_rules.py).
+#
+# lc2, not as advertised, beside lc1:
+#   spelling  more negations and title features: "tas hnde nmm cia fast
+#             charging", "No remote control" under "with Remote"
+#   photo     the photo, the ad or the page stands in for the listing: "sana
+#             kung ano nsa pic un ippdla", "The page shows that ... yet",
+#             "budol ang mga ads"
+#   brand     the title's brand denied, with a pointer to the listing: "its not
+#             Panasonic as posted", "Stop saying the brand is Xiaomi"
+#   bare      "BUT ITS NOT." right after a sentence naming a listed claim
+# lc2f, possible fake:
+#   brand     the title's brand denied or swapped: "Not a samsung", "but its
+#             not its just a random china product"
+#   elsewhere every "fake" aims at a listed feature or number, the seller, the
+#             photos or the reviews: "fake noise cancellation", "SELLER IS
+#             FAKE!!!" (a fake fast charger is still the item)
+# Tried and not kept: lc1's context part limited to listed claims (it removed 4
+# real reports for 1 false flag), "no brand" and "different brand" alone (1 of
+# 7 right), "the pictures are fake" said of the courier.
+LC2_REVISION = "lc2"
+LC2F_REVISION = "lc2f"
+LC2_OFF: set[str] = set()
+LC2F_OFF: set[str] = set()
+_NEG2 = r"(?:not|hindi|hinde|hnde|hind|di|d|hnd|ndi|nde|isn't|isnt|wasn't|wasnt|doesn't|doesnt|no|never)"
+_SOFT2 = (
+    r"(?:(?:sya|siya|cia|xa|cya|po|naman|nman|nmn|nmm|talaga|tlga|totoo|totoong|tunay|truly|truely|really|a|an|the|na|pa|"
+    r"real|legit|even|ito|to|yan|yung|ung|it|is|ang|siyang|syang|ganun|ganon|tlaga|ganap|actually|at\s+all)\s+)"
+)
+EXTRA_FEATURES = {
+    "remote": (r"with\s+remote|remote\s+control|\bremote\b", r"remote(?:\s+control)?"),
+    "mic": (r"with\s+mic\b|with\s+microphone|\bmic\b", r"mic\b|microphone"),
+}
+FEATURES2 = {**FEATURES, **EXTRA_FEATURES}
+FEATURE_LISTING2 = {key: re.compile(pair[0], re.I) for key, pair in EXTRA_FEATURES.items()}
+FEATURE_DENIED2 = {
+    key: re.compile(rf"(?<!\w){_NEG2}\s+{_SOFT2}{{0,4}}(?:{pair[1]})(?!\w)", re.I) for key, pair in FEATURES2.items()
+}
+_PHOTO = r"(?:pic|pics|picture|pictures|photo|photos|image|images|larawan|litrato|ads?|advertisement|page|vid|video)"
+PHOTO_DIFFERS = (
+    re.compile(rf"(?<!\w)sana\s+(?:[\w']+\s+){{0,4}}(?:nasa|sa|nsa|na\s+nasa)\s+{_PHOTO}(?!\w)", re.I),
+    re.compile(rf"(?<!\w)(?:iba|different|differs?)\s+(?:[\w']+\s+){{0,3}}(?:nasa|nsa|sa|in\s+the|from\s+the|on\s+the|the)\s+{_PHOTO}(?!\w)", re.I),
+    re.compile(
+        rf"(?<!\w)(?:nasa|nsa|in\s+the|on\s+the|the)\s+{_PHOTO}\s+(?:[\w']+\s+){{0,5}}"
+        r"(?:pero|but|yet|kaso|tapos|the\s+i|i\s+receive\w*|dumating|binigay|pinadala|ang\s+dumating|ang\s+pinadala)(?!\w)",
+        re.I,
+    ),
+    re.compile(rf"(?<!\w)(?:the\s+)?{_PHOTO}\s+(?:clearly\s+)?(?:shows?|showed|says?|said|stated)\s+(?:that\s+)?", re.I),
+    re.compile(
+        r"(?<!\w)(?:budol|misleading|fake|peke|pekeng)\s+(?:[\w']+\s+){0,2}(?:ang\s+)?(?:mga\s+)?"
+        r"(?:ads?|advertisement|presentation|pictures?|pics?|photos?|description)(?!\w)",
+        re.I,
+    ),
+)
+PHOTO_NOT_A_CLAIM = re.compile(
+    r"(?<!\w)(?:(?:\d+(?:st|nd|rd|th)|first|second|third|fourth|my|attached|this|these|uploaded|last)\s+(?:photos?|pics?|pictures?|videos?|vids?)|"
+    r"delivery|rider|courier|signature|same|katulad|kapareho|pareho|kagaya|gaya|exactly|just\s+like|as\s+shown|as\s+pictured|"
+    r"what\s+you\s+see|photo\s+not\s+related|not\s+related|for\s+reference|no\s+pic|walang\s+pic|cant\s+upload|can't\s+upload)(?!\w)",
+    re.I,
+)
+BRANDS = (
+    "panasonic", "xiaomi", "jbl", "lenovo", "platinum", "samsung", "apple", "anker", "baseus", "ugreen", "shokz", "sony",
+    "philips", "hanabishi", "asahi", "kyowa", "realme", "oppo", "vivo", "huawei", "romoss", "remax", "hoco", "yamaha",
+    "shure", "logitech", "acer", "asus", "monster", "comica", "boya", "kanazawa", "orashare", "edifier", "soundcore",
+    "qcy", "haylou", "tecno", "infinix", "redmi", "aukey", "vention", "imou", "tplink", "tp-link",
+)
+OWN_WORDS = re.compile(r"(?<!\w)(?:my|ko|q|namin|nya|niya|own|old|dati|previous|una)(?!\w)", re.I)
+WRONG_ORDER = re.compile(
+    r"(?<!\w)(?:mali|maling|wrong|ibang\s+item|iba\s+(?:ang\s+)?(?:dumating|pinadala|binigay)|i\s+ordered|order\s+ko|inorder\s+ko)(?!\w)", re.I
+)
+LISTING_POINTER = re.compile(
+    r"(?<!\w)(?:as\s+(?:posted|advertised|described|stated|shown|pictured)|advertis\w*|nakalagay|naka\s+lagay|nkalagay|sabi|daw|raw|"
+    r"description|title|stop\s+saying|in\s+the\s+picture|sa\s+picture|nasa\s+pic\w*|posted|listing|claims?)(?!\w)",
+    re.I,
+)
+NO_BRAND = re.compile(
+    r"(?<!\w)(?:random\s+(?:china|chinese)\s+(?:product|brand|item)|"
+    r"(?:receive\w*|recieve\w*|dumating|binigay|pinadala|got)\s+(?:is\s+|was\s+)?(?:a\s+)?no\s*brand)(?!\w)",
+    re.I,
+)
+_ELSEWHERE = r"(?:seller|shop|store|reviews?|ratings?|comments?|feedbacks?|pictures?|pics?|photos?|ads?|advertisement|description|promo|discount|sale)"
+_FAKE = r"(?:fake|peke|pekeng|faker)"
+BARE_DENIAL = re.compile(
+    r"^\W*(?:but|pero|kaso|however)\s+(?:it'?s|its|it\s+is|it\s+was|sya|siya|cia|xa)?\s*(?:totally\s+|really\s+|actually\s+|naman\s+|nman\s+|pala\s+|po\s+)*"
+    r"(?:not|hindi|di|wala)\W*(?:at\s+all\W*|naman\W*|pala\W*|po\W*)*$",
+    re.I,
+)
+CLAIM_CUE2 = re.compile(
+    r"(?<!\w)(?:as\s+described|described|as\s+advertised|advertis\w*|says?|said|stated|sabi|daw|raw|nakalagay|description|"
+    r"it\s+is\s+saying|supposed|dapat)(?!\w)",
+    re.I,
+)
+
+
+def listing_claims2(listing: dict | None) -> dict:
+    """lc1's claims, with two more title features and the title's brands."""
+    claim = listing_claims(listing)
+    title = tn.normalize_text((listing or {}).get("name") or "")
+    claim["features"] = set(claim["features"]) | {key for key, pattern in FEATURE_LISTING2.items() if pattern.search(title)}
+    claim["brands"] = {brand for brand in BRANDS if re.search(rf"(?<!\w){re.escape(brand)}(?!\w)", title)}
+    return claim
+
+
+def _names_listed(text: str, claim: dict) -> bool:
+    if any(re.search(FEATURES2[key][1], text, re.I) for key in claim["features"]):
+        return True
+    if any(NUMBER[unit].search(text) for unit in claim["numbers"]):
+        return True
+    if claim["b1t1"] and OFFER_B1T1.search(text):
+        return True
+    return any(re.search(rf"(?<!\w){re.escape(brand)}(?!\w)", text) for brand in claim["brands"])
+
+
+def _brand_denied(text: str, claim: dict) -> set[str]:
+    found: set[str] = set()
+    if WRONG_ORDER.search(text):
+        return found
+    for brand in claim["brands"]:
+        name = re.escape(brand)
+        if re.search(rf"(?<!\w){_NEG2}\s+{_SOFT2}{{0,3}}(?:a\s+|an\s+)?{name}(?!\w)", text, re.I) and not OWN_WORDS.search(text):
+            found.add("not")
+        if re.search(rf"(?<!\w){_FAKE}\s+{name}(?!\w)", text, re.I):
+            found.add("fake")
+        if re.search(rf"(?<!\w)(?:saying|says|said|claims?)\s+(?:that\s+)?(?:the\s+)?brand\s+is\s+{name}", text, re.I):
+            found.add("claim")
+    if claim["brands"] and NO_BRAND.search(text):
+        found.add("none")
+    return found
+
+
+def _fake_elsewhere(text: str, claim: dict) -> bool:
+    hits = list(re.finditer(rf"(?<!\w){_FAKE}(?!\w)", text, re.I))
+    if not hits:
+        return False
+    features = "|".join(FEATURES2[key][1] for key in claim["features"] if key != "fast_charge") or r"(?!x)x"
+    numbers = "|".join(NUMBER[unit].pattern for unit in claim["numbers"]) or r"(?!x)x"
+    for hit in hits:
+        after = text[hit.end(): hit.end() + 40]
+        before = text[max(0, hit.start() - 30): hit.start()]
+        aimed = (
+            re.match(rf"\s+(?:(?:na|ng|yung|ung|ang|the|mga)\s+)?(?:{features}|{_ELSEWHERE})(?!\w)", after, re.I)
+            or re.match(rf"\s+(?:(?:na|ng|yung|ung|ang|the)\s+)?(?:{numbers})", after, re.I)
+            or re.search(rf"(?:{_ELSEWHERE})\s+(?:is|are|was|were|ay|so|very|talaga|is\s+so)?\s*$", before, re.I)
+        )
+        if not aimed:
+            return False
+    return True
+
+
+def lc2_rules(segments: list[str], tagged: list[dict], listing: dict | None) -> dict[int, set[str]]:
+    """Rules lc2: per sentence, the not-as-advertised parts added beside lc1 (tagged is read after lc1)."""
+    claim = listing_claims2(listing)
+    normalized = [tn.normalize_text(seg) for seg in segments]
+    flagged = ["not_as_described" in (t.get("extra_tags") or []) for t in tagged]
+    added: dict[int, set[str]] = {}
+
+    def add(i: int, part: str) -> None:
+        if part.split(":")[0] not in LC2_OFF:
+            added.setdefault(i, set()).add(part)
+
+    for i, text in enumerate(normalized):
+        if flagged[i]:
+            continue
+        for key in claim["features"]:
+            found = FEATURE_DENIED2[key].search(text)
+            if found and not (key == "fast_charge" and FAST_NOT_CHARGING.search(text[found.start(): found.end() + 15])):
+                add(i, f"spelling:{key}")
+                break
+        if not PHOTO_NOT_A_CLAIM.search(text) and any(pattern.search(text) for pattern in PHOTO_DIFFERS):
+            add(i, "photo")
+        brand = _brand_denied(text, claim) - {"fake"}
+        if brand and LISTING_POINTER.search(text):
+            add(i, "brand:" + "+".join(sorted(brand)))
+    for i in range(1, len(normalized)):
+        if (not flagged[i] and i not in added and BARE_DENIAL.match(normalized[i])
+                and _names_listed(normalized[i - 1], claim) and CLAIM_CUE2.search(normalized[i - 1])):
+            add(i, "bare")
+    return added
+
+
+def lc2f_rules(segments: list[str], tagged: list[dict], listing: dict | None) -> dict[int, tuple[str, str]]:
+    """Rules lc2f: per sentence, ("add", part) or ("remove", part) for possible fake."""
+    claim = listing_claims2(listing)
+    changes: dict[int, tuple[str, str]] = {}
+    for i, seg in enumerate(segments):
+        text = tn.normalize_text(seg)
+        fake = "counterfeit" in (tagged[i].get("tags") or [])
+        if not fake and "brand" not in LC2F_OFF:
+            brand = _brand_denied(text, claim)
+            if brand:
+                changes[i] = ("add", "brand:" + "+".join(sorted(brand)))
+        elif fake and "elsewhere" not in LC2F_OFF and _fake_elsewhere(text, claim):
+            changes[i] = ("remove", "elsewhere")
+    return changes

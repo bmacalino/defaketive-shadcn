@@ -45,7 +45,8 @@ from .extra_labels import (
     not_as_described_spans,
     quality_spans,
 )
-from .listing_context import LISTING_CONTEXT_REVISION
+from .fault_rules import F11_REVISION, S2_REVISION, f11_match, s2_removes
+from .listing_context import LC2_REVISION, LC2F_REVISION, LISTING_CONTEXT_REVISION, lc2_rules, lc2f_rules
 from .listing_context import review_rules as listing_review_rules
 from .model import DefaketiveSentimentModel
 from .product_badges import (
@@ -176,6 +177,16 @@ _EXTRA_ADDON: dict[str, Any] = {}
 # LISTING_CONTEXT_OFF switches them off, so tag_review reads each sentence alone
 # as before, for measurements of the sentence rules.
 LISTING_CONTEXT_OFF = False
+# Candidates of held-out round 19 (research/PREREGISTRATION_round19.md), each
+# judged once on its own: rules lc2 (not as advertised) and lc2f (possible fake)
+# in tag_review, beside lc1; rules f11 (faulty) and s2 (safety, a "grounded"
+# hum) in tag_sentence (fault_rules.py). Each switch turns its candidate off.
+# lc2, f11 and s2 were adopted (Table 12o). lc2f changed no flag on round 19, so
+# it is not adopted and stays off; its code is kept for the record.
+LC2_OFF = False
+LC2F_OFF = True
+F11_OFF = False
+S2_OFF = False
 
 
 def _extra_addon() -> Any:
@@ -1068,6 +1079,7 @@ class LexiconHazardTagger:
                 normalized, spans, matches, tags, scores, severities, confidence, filtered, safety_at,
                 about_the_product, suppressed,
             )
+            self._round19_rules(raw, spans, matches, tags, scores, severities, confidence, about_the_product, suppressed)
 
         described: list[tuple[int, int]] = []
         if self.counterfeit_rules in COUNTERFEIT_RULE_SETS:
@@ -1228,6 +1240,45 @@ class LexiconHazardTagger:
             confidence.pop(SAFETY, None)
             suppressed[SAFETY] = reason
 
+    def _round19_rules(
+        self,
+        raw: str,
+        spans: Sequence[text_norm.TokenSpan],
+        matches: list[dict[str, Any]],
+        tags: list[str],
+        scores: dict[str, float],
+        severities: dict[str, int],
+        confidence: dict[str, bool],
+        about_the_product: bool,
+        suppressed: dict[str, str],
+    ) -> None:
+        """Rules f11 (a fault the word list misses) and s2 (a "grounded" hum is not
+        safety), fault_rules.py. Works in place on the result."""
+        if not F11_OFF and DEFECT not in tags:
+            found = f11_match(raw)
+            if found is not None:
+                part, (start, end) = found
+                matches.append(
+                    {"ngram": raw[start:end].casefold(), "category": DEFECT, "severity": MIN_CONFIDENT_SEVERITY,
+                     "negated": False, "span": [start, end], "rule": f"{F11_REVISION}:{part}"}
+                )
+                tags.append(DEFECT)
+                scores[DEFECT] = float(MIN_CONFIDENT_SEVERITY)
+                severities[DEFECT] = MIN_CONFIDENT_SEVERITY
+                confidence[DEFECT] = about_the_product
+                tags.sort(key=CATEGORIES.index)
+        if not S2_OFF and SAFETY in tags:
+            words = [
+                match["ngram"] for match in matches
+                if match["category"] == SAFETY and not match["negated"] and not match.get("excluded")
+            ]
+            if s2_removes(raw, words):
+                tags.remove(SAFETY)
+                scores.pop(SAFETY, None)
+                severities.pop(SAFETY, None)
+                confidence.pop(SAFETY, None)
+                suppressed[SAFETY] = "grounded_sound"
+
     @property
     def extra_addon(self) -> Any:
         """The learned add-on of the two newer labels, when this checker reads it."""
@@ -1364,7 +1415,37 @@ class LexiconHazardTagger:
                 present = set(item.get("extra_tags") or []) | set(labels)
                 item["extra_tags"] = [tag for tag in EXTRA_TAGS if tag in present]
                 item["extra_context"] = {label: sorted(parts) for label, parts in labels.items()}
+            if not LC2_OFF:
+                for index, parts in lc2_rules(segments, tagged, listing).items():
+                    item = tagged[index]
+                    present = set(item.get("extra_tags") or []) | {NOT_AS_DESCRIBED}
+                    item["extra_tags"] = [tag for tag in EXTRA_TAGS if tag in present]
+                    context = dict(item.get("extra_context") or {})
+                    context[NOT_AS_DESCRIBED] = sorted(set(context.get(NOT_AS_DESCRIBED) or []) | parts)
+                    item["extra_context"] = context
+            if not LC2F_OFF:
+                for index, (action, part) in lc2f_rules(segments, tagged, listing).items():
+                    self._listing_fake(tagged[index], action, part)
         return tagged
+
+    @staticmethod
+    def _listing_fake(item: dict[str, Any], action: str, part: str) -> None:
+        """Rules lc2f on one tagged sentence: add or remove possible fake."""
+        tags = item["tags"]
+        if action == "add" and COUNTERFEIT not in tags:
+            tags.append(COUNTERFEIT)
+            tags.sort(key=CATEGORIES.index)
+            item["scores"][COUNTERFEIT] = float(MIN_CONFIDENT_SEVERITY)
+            item["high_confidence"][COUNTERFEIT] = not NON_PRODUCT_SUBJECT.search(item["text_normalized"])
+            item["terms"].append(
+                {"ngram": part, "category": COUNTERFEIT, "severity": MIN_CONFIDENT_SEVERITY, "negated": False,
+                 "span": None, "rule": LC2F_REVISION}
+            )
+        elif action == "remove" and COUNTERFEIT in tags:
+            tags.remove(COUNTERFEIT)
+            item["scores"].pop(COUNTERFEIT, None)
+            item["high_confidence"].pop(COUNTERFEIT, None)
+            item["suppressed"][COUNTERFEIT] = f"{LC2F_REVISION}:{part}"
 
 
 class HazardBadgeModel:
@@ -1423,6 +1504,8 @@ class HazardBadgeModel:
                 + NEGATION_D_04_REVISION
                 + POWER_SUPPLY_REVISION
                 + SAFETY_GUIDE16_REVISION
+                + ("" if F11_OFF else F11_REVISION)
+                + ("" if S2_OFF else S2_REVISION)
             )
         hazard_version = base_version
         if learned is not None:
@@ -1441,6 +1524,7 @@ class HazardBadgeModel:
                 hazard_version = f"{hazard_version}+{addon_version}"
             if getattr(self.tagger, "listing_context", False):
                 hazard_version = f"{hazard_version}+{LISTING_CONTEXT_REVISION}"
+                hazard_version += ("" if LC2_OFF else f"+{LC2_REVISION}") + ("" if LC2F_OFF else f"+{LC2F_REVISION}")
         self.model_version = (
             f"{hazard_version}+{sentiment_version}" if sentiment_version else hazard_version
         )
