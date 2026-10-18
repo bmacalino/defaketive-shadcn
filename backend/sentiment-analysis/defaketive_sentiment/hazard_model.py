@@ -190,9 +190,10 @@ F11_OFF = False
 S2_OFF = False
 # Rules s3 (safety_lookalikes.py; research/PREREGISTRATION_round20.md): false safety
 # alarms removed, heat in missed spellings added. Held-out round 20 had none of the
-# look-alikes, so s3 changed no flag there and is not adopted: it stays off until a
-# held-out round can judge it (Table 12p). The code is kept for that test.
-S3_RULES_OFF = True
+# look-alikes, so s3 changed no flag there and was not adopted (Table 12p). Held-out
+# round 21, drawn from listings where the look-alikes occur, judged it: safety F1
+# 0.599 -> 0.720, every one of the 75 flags it removed labelled no (Table 12q). Adopted.
+S3_RULES_OFF = False
 
 
 def _extra_addon() -> Any:
