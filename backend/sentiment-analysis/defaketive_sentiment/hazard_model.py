@@ -46,6 +46,7 @@ from .extra_labels import (
     quality_spans,
 )
 from .fault_rules import F11_REVISION, S2_REVISION, f11_match, s2_removes
+from .safety_lookalikes import S3_REVISION, s3_adds, s3_removes
 from .listing_context import LC2_REVISION, LC2F_REVISION, LISTING_CONTEXT_REVISION, lc2_rules, lc2f_rules
 from .listing_context import review_rules as listing_review_rules
 from .model import DefaketiveSentimentModel
@@ -187,6 +188,11 @@ LC2_OFF = False
 LC2F_OFF = True
 F11_OFF = False
 S2_OFF = False
+# Rules s3 (safety_lookalikes.py; research/PREREGISTRATION_round20.md): false safety
+# alarms removed, heat in missed spellings added. Held-out round 20 had none of the
+# look-alikes, so s3 changed no flag there and is not adopted: it stays off until a
+# held-out round can judge it (Table 12p). The code is kept for that test.
+S3_RULES_OFF = True
 
 
 def _extra_addon() -> Any:
@@ -1278,6 +1284,25 @@ class LexiconHazardTagger:
                 severities.pop(SAFETY, None)
                 confidence.pop(SAFETY, None)
                 suppressed[SAFETY] = "grounded_sound"
+        if not S3_RULES_OFF and SAFETY in tags:
+            parts = s3_removes(raw)
+            if parts:
+                tags.remove(SAFETY)
+                scores.pop(SAFETY, None)
+                severities.pop(SAFETY, None)
+                confidence.pop(SAFETY, None)
+                suppressed[SAFETY] = f"{S3_REVISION}:" + "+".join(sorted(parts))
+        elif not S3_RULES_OFF and SAFETY not in suppressed:
+            part = s3_adds(raw)
+            if part is not None:
+                matches.append(
+                    {"ngram": part, "category": SAFETY, "severity": 2, "negated": False, "span": None, "rule": S3_REVISION}
+                )
+                tags.append(SAFETY)
+                scores[SAFETY] = 2.0
+                severities[SAFETY] = 2
+                confidence[SAFETY] = False
+                tags.sort(key=CATEGORIES.index)
 
     @property
     def extra_addon(self) -> Any:
@@ -1506,6 +1531,7 @@ class HazardBadgeModel:
                 + SAFETY_GUIDE16_REVISION
                 + ("" if F11_OFF else F11_REVISION)
                 + ("" if S2_OFF else S2_REVISION)
+                + ("" if S3_RULES_OFF else S3_REVISION)
             )
         hazard_version = base_version
         if learned is not None:

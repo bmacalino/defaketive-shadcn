@@ -1,10 +1,10 @@
 {
  "what": "Files copied byte for byte from the original app by scripts/sync_backend.py. Do not edit them here.",
  "original": {
-  "commit": "4d99ef19e7e0e11583cad0f8ad5de53d0d11de1b",
+  "commit": "eb497f402cc9e751bffcbf4647e0797cc28a3be9",
   "branch": "html-css-migration"
  },
- "copied_at": "2026-10-18T03:26:29+00:00",
+ "copied_at": "2026-10-18T05:49:47+00:00",
  "files": {
   "webapp.py": "c177fefc6818b0f309eaa53c43b33074838d7fc36033897dd8b229013677257a",
   "accounts.py": "4c3f9f804618846473d8612233540bffa0a26534eeb1d12fb6974da4ea29b609",
@@ -62,7 +62,7 @@
   "sentiment-analysis/defaketive_sentiment/extra_labels.py": "2e3e5cffaf405a5df0c598068133757ff5846b43c76795b7395e5004c2b06561",
   "sentiment-analysis/defaketive_sentiment/fault_rules.py": "20e006c86ba3578a304b43055cdd8ab579a9a70f0dea0ae62ba3b5f316d058a0",
   "sentiment-analysis/defaketive_sentiment/hazard_learned.py": "1ff7af88ed5c979dd02b3ab9e2a872bc92f4028d38511efbf9f7f931b849213e",
-  "sentiment-analysis/defaketive_sentiment/hazard_model.py": "3dd1de7bb014706157407edbd43b3012b337417bf522ac48c73e32ad0f28badd",
+  "sentiment-analysis/defaketive_sentiment/hazard_model.py": "4c862f3e0e2c5b0f1841768cbeaf5bd5b7b9b7cab32e6c8c404379c301ea550b",
   "sentiment-analysis/defaketive_sentiment/hazard_taxonomy.py": "9a34caf591adb417f81f4dc17e06d0cfde7d5cd52de9e9fd208e336e9d7cf348",
   "sentiment-analysis/defaketive_sentiment/lexicons/hazard_parameters_v1.json": "6386ecd36f43ce8fc0bb73d7584ece4040a0eede1edf8384ebb81d6bbb754250",
   "sentiment-analysis/defaketive_sentiment/lexicons/hazard_phrase_exclusions_v1.tsv": "bbcc404373f4f2e2655945b9a89d63831ba5d16413dcd7feccb2b4a9099a8dcd",
@@ -81,6 +81,7 @@
   "sentiment-analysis/defaketive_sentiment/proportions.py": "bf6f6ddfaee1dc710efdbc6f7044b0e0d090f0d6fcc3c3056ec4f4df1f4d87c7",
   "sentiment-analysis/defaketive_sentiment/registry.py": "e73521fda03fbe8a04bfc4201cb2b94f0a4f72127a7e182bf5b08175f229208f",
   "sentiment-analysis/defaketive_sentiment/risk_heads.py": "e3275e392d6acc88ee1094536bd7ba2fa933d7c4cd0fef8dc2a45dff42a0f68d",
+  "sentiment-analysis/defaketive_sentiment/safety_lookalikes.py": "2af61c4ce29fd5a1d59f562cf7409978a5cc8d924c1fd9dcdcbd4ae76d6d4c66",
   "sentiment-analysis/defaketive_sentiment/text_norm.py": "9aa843ccae3360f5aadba4d978cce5068a012d1866182aa9d9f61969cd0699e9",
   "sentiment-analysis/defaketive_sentiment/trained.py": "13d4327cff68837a68ec8adfc7329fe3582722a6d9c715250524765e332c05f9",
   "sentiment-analysis/defaketive_sentiment/transformer_sentiment.py": "f72d565047d05fef54d8764db945a24ebbf47b620c821fe22342eeae2fc33f03",
