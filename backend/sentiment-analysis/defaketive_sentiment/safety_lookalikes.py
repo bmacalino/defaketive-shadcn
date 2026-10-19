@@ -24,6 +24,14 @@ beside one keeps its flag.
                    hot"
 
 S3_OFF names parts switched off, for the part-by-part check only.
+
+Rules s4 (19 Oct 2026; research/PREREGISTRATION_round23.md) add one part, read
+only when s3_removes is asked for it (hazard_model.S4_RULES_OFF):
+
+    previous       a previous unit in English, beside a swelling, heat, fire or
+                   explosion word: "the first I have just have a bloated
+                   battery", "my old one exploded"; not "the first time", "the
+                   other day", nor with "also", "too" or "this one"
 """
 
 import re
@@ -105,11 +113,25 @@ SPELLING = [
     re.compile(r"(?<![a-z])(?:maiinit|nangangainit|nangainit)(?![a-z])", re.I),
     re.compile(r"(?<![a-z])(?:became|becomes|become|gets|got|getting|went|goes|turned|turns)\s+(?:(?!not\b)\w+\s+){0,2}hot(?![a-z])", re.I),
 ]
+S4_REVISION = "s4"
+PREVIOUS_UNIT = re.compile(
+    r"(?<![a-z])(?:the|my|our)\s+(?:very\s+)?(?:first|previous|old|older|last|former)"
+    r"(?!\s+(?:time|times|day|days|night|nights|week|weeks|month|months|hour|hours|minute|minutes|use|uses|usage|charge|"
+    r"charging|try|few|couple|moment|second|seconds)(?![a-z]))"
+    rf"(?:\s+[\w']+){{0,6}}?\s+(?:{_HEAT}|bloat\w*|swell\w*|swollen|explod\w*|burn\w*|burnt|fire|melt\w*|smok\w*|lumobo|sumabog|nasunog)(?![a-z])",
+    re.I,
+)
+THIS_ONE_TOO = re.compile(
+    r"(?<![a-z])(?:also|too|again|as\s+well|same|both|rin|din|ulit|this\s+(?:one|unit|item|pair|time)|the\s+(?:new|second|replacement)|"
+    r"(?:new|second|2nd|replacement)\s+(?:one|unit|item|pair))(?![a-z])",
+    re.I,
+)
 NEGATED_BEFORE = re.compile(r"(?<![a-z])(?:no|not|never|without|walang|wala|hindi|di|d|haven'?t|didn'?t|doesn'?t|don'?t|sana|baka|might|hope)\s+(?:\w+\s+){0,3}$", re.I)
 
 
-def s3_removes(raw: str) -> set[str]:
-    """The parts that read every hazard word of the sentence as a look-alike; empty when any stays a report."""
+def s3_removes(raw: str, previous: bool = False) -> set[str]:
+    """The parts that read every hazard word of the sentence as a look-alike; empty when any stays a report.
+    previous adds rules s4's part."""
     text = " ".join(str(raw).split())
     hazards = [m.span() for m in HAZARD.finditer(text)]
     if not hazards:
@@ -125,6 +147,9 @@ def s3_removes(raw: str) -> set[str]:
         spans = [s for s in spans if s[2] != "comfort"]
     if ITEM.search(text):
         spans = [s for s in spans if s[2] != "other_device" or re.search(r"lumobo|swell|burn|nasunog|sumabog|una|dati|previous|old", text[s[0]:s[1]], re.I)]
+    if previous and not THIS_ONE_TOO.search(text):
+        for m in PREVIOUS_UNIT.finditer(text):
+            spans.append((m.start(), m.end(), "previous"))
     if "fragile" not in S3_OFF:
         others = [h for h in hazards if not re.match(r"delikado", text[h[0]:h[1]], re.I)]
         if all(any(s <= a and b <= e for s, e, _ in spans) for a, b in others):

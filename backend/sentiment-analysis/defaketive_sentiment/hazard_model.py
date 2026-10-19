@@ -46,8 +46,8 @@ from .extra_labels import (
     quality_spans,
 )
 from .fault_rules import F11_REVISION, S2_REVISION, f11_match, s2_removes
-from .safety_lookalikes import S3_REVISION, s3_adds, s3_removes
-from .listing_context import LC2_REVISION, LC2F_REVISION, LISTING_CONTEXT_REVISION, lc2_rules, lc2f_rules
+from .safety_lookalikes import S3_REVISION, S4_REVISION, s3_adds, s3_removes
+from .listing_context import LC2_REVISION, LC2F_REVISION, LC3_REVISION, LISTING_CONTEXT_REVISION, lc2_rules, lc2f_rules, lc3_rules
 from .listing_context import review_rules as listing_review_rules
 from .model import DefaketiveSentimentModel
 from .product_badges import (
@@ -194,6 +194,43 @@ S2_OFF = False
 # round 21, drawn from listings where the look-alikes occur, judged it: safety F1
 # 0.599 -> 0.720, every one of the 75 flags it removed labelled no (Table 12q). Adopted.
 S3_RULES_OFF = False
+# Candidates of held-out round 23 (research/PREREGISTRATION_round23.md), each judged
+# once on its own. Rules lc3 (listing_context.py), in tag_review after lc2f: a
+# possible-fake flag whose "fake" is aimed at a false spec moves to not as
+# advertised (guide 1.7, Rule 8), and one comparing the item with fakes is removed.
+# Rules s4 (safety_lookalikes.py): s3's look-alikes gain the reviewer's previous
+# unit in English. Each switch turns its candidate off. Round 23 judged them (Table
+# 12s): lc3 removed 14 possible-fake flags, all labelled no, and added 9 not as
+# advertised, all right (fake F1 0.590 -> 0.726, not as advertised 0.593 -> 0.618).
+# Adopted. s4 changed no flag on round 23, so it is not adopted and stays off; its
+# code is kept for the record.
+LC3_OFF = False
+S4_RULES_OFF = True
+# The label transformer (18 Oct 2026; label_transformer.py, models/label_transformer_v1):
+# a fine-tuned XLM-RoBERTa, chosen on training data only
+# (research/label_transformer_choice_v1.json) and judged once on held-out round 22
+# (research/PREREGISTRATION_round22.md). In tag_review, after the listing rules, it
+# may add the labels its manifest names (of poor quality, not as advertised and
+# possible fake) to a sentence nothing flagged with them. Read only with keyword
+# rules 0.4 and counterfeit rules c2; LABEL_TRANSFORMER_OFF switches it off.
+# Round 22 judged it (Table 12r): it added possible fake to 5 sentences, 3 right,
+# under the 70 in 100 needed with 13 reports, and made each review about five times
+# slower. Not adopted: it stays off, and the code is kept for the record.
+LABEL_TRANSFORMER_FOLDER = "label_transformer_v1"
+LABEL_TRANSFORMER_REVISION = "lt1"
+LABEL_TRANSFORMER_OFF = True
+_LABEL_TRANSFORMER: dict[str, Any] = {}
+
+
+def _label_transformer() -> Any:
+    """The label transformer, loaded once; None when its folder is not installed."""
+    if "model" not in _LABEL_TRANSFORMER:
+        from .hazard_learned import MODELS_ROOT
+        from .label_transformer import LabelTransformer
+
+        folder = MODELS_ROOT / LABEL_TRANSFORMER_FOLDER
+        _LABEL_TRANSFORMER["model"] = LabelTransformer(folder) if (folder / "manifest.json").is_file() else None
+    return _LABEL_TRANSFORMER["model"]
 
 
 def _extra_addon() -> Any:
@@ -1286,7 +1323,7 @@ class LexiconHazardTagger:
                 confidence.pop(SAFETY, None)
                 suppressed[SAFETY] = "grounded_sound"
         if not S3_RULES_OFF and SAFETY in tags:
-            parts = s3_removes(raw)
+            parts = s3_removes(raw, previous=not S4_RULES_OFF)
             if parts:
                 tags.remove(SAFETY)
                 scores.pop(SAFETY, None)
@@ -1316,6 +1353,18 @@ class LexiconHazardTagger:
     def extra_model_version(self) -> str:
         addon = self.extra_addon
         return addon.version if addon is not None else ""
+
+    @property
+    def label_transformer(self) -> Any:
+        """The label transformer, when this checker reads it."""
+        if LABEL_TRANSFORMER_OFF or self.rules != "0.4" or self.counterfeit_rules != EXTRA_RULES:
+            return None
+        return _label_transformer()
+
+    @property
+    def label_transformer_version(self) -> str:
+        model = self.label_transformer
+        return model.version if model is not None else ""
 
     @property
     def listing_context(self) -> bool:
@@ -1452,7 +1501,54 @@ class LexiconHazardTagger:
             if not LC2F_OFF:
                 for index, (action, part) in lc2f_rules(segments, tagged, listing).items():
                     self._listing_fake(tagged[index], action, part)
+            if not LC3_OFF:
+                for index, (action, part) in lc3_rules(segments, tagged, listing).items():
+                    self._fake_to_claim(tagged[index], action, part)
+        model = self.label_transformer
+        if model is not None:
+            for item, segment in zip(tagged, segments):
+                self._transformer_labels(item, model.decide(segment))
         return tagged
+
+    @staticmethod
+    def _transformer_labels(item: dict[str, Any], decided: Mapping[str, float]) -> None:
+        """The label transformer on one tagged sentence: add each label it decides
+        that nothing flagged, possible fake as a badge category and the other two
+        as extra labels."""
+        present = set(item["tags"]) | set(item.get("extra_tags") or [])
+        added = {label: probability for label, probability in decided.items() if label not in present}
+        if not added:
+            return
+        if COUNTERFEIT in added:
+            item["tags"].append(COUNTERFEIT)
+            item["tags"].sort(key=CATEGORIES.index)
+            item["scores"][COUNTERFEIT] = float(MIN_CONFIDENT_SEVERITY)
+            item["high_confidence"][COUNTERFEIT] = not NON_PRODUCT_SUBJECT.search(item["text_normalized"])
+            item["terms"].append(
+                {"ngram": "", "category": COUNTERFEIT, "severity": MIN_CONFIDENT_SEVERITY, "negated": False,
+                 "span": None, "rule": LABEL_TRANSFORMER_REVISION}
+            )
+        extra = set(item.get("extra_tags") or []) | {label for label in added if label in EXTRA_TAGS}
+        item["extra_tags"] = [tag for tag in EXTRA_TAGS if tag in extra]
+        item["extra_transformer"] = added
+
+    @staticmethod
+    def _fake_to_claim(item: dict[str, Any], action: str, part: str) -> None:
+        """Rules lc3 on one tagged sentence: remove possible fake and, on a move,
+        add not as advertised."""
+        tags = item["tags"]
+        if COUNTERFEIT not in tags:
+            return
+        tags.remove(COUNTERFEIT)
+        item["scores"].pop(COUNTERFEIT, None)
+        item["high_confidence"].pop(COUNTERFEIT, None)
+        item["suppressed"][COUNTERFEIT] = f"{LC3_REVISION}:{part}"
+        if action == "move":
+            present = set(item.get("extra_tags") or []) | {NOT_AS_DESCRIBED}
+            item["extra_tags"] = [tag for tag in EXTRA_TAGS if tag in present]
+            context = dict(item.get("extra_context") or {})
+            context[NOT_AS_DESCRIBED] = sorted(set(context.get(NOT_AS_DESCRIBED) or []) | {f"{LC3_REVISION}:{part}"})
+            item["extra_context"] = context
 
     @staticmethod
     def _listing_fake(item: dict[str, Any], action: str, part: str) -> None:
@@ -1533,6 +1629,7 @@ class HazardBadgeModel:
                 + ("" if F11_OFF else F11_REVISION)
                 + ("" if S2_OFF else S2_REVISION)
                 + ("" if S3_RULES_OFF else S3_REVISION)
+                + ("" if S3_RULES_OFF or S4_RULES_OFF else S4_REVISION)
             )
         hazard_version = base_version
         if learned is not None:
@@ -1552,6 +1649,10 @@ class HazardBadgeModel:
             if getattr(self.tagger, "listing_context", False):
                 hazard_version = f"{hazard_version}+{LISTING_CONTEXT_REVISION}"
                 hazard_version += ("" if LC2_OFF else f"+{LC2_REVISION}") + ("" if LC2F_OFF else f"+{LC2F_REVISION}")
+                hazard_version += "" if LC3_OFF else f"+{LC3_REVISION}"
+            transformer_version = getattr(self.tagger, "label_transformer_version", "")
+            if transformer_version:
+                hazard_version = f"{hazard_version}+{transformer_version}"
         self.model_version = (
             f"{hazard_version}+{sentiment_version}" if sentiment_version else hazard_version
         )

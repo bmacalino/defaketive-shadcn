@@ -376,3 +376,103 @@ def lc2f_rules(segments: list[str], tagged: list[dict], listing: dict | None) ->
         elif fake and "elsewhere" not in LC2F_OFF and _fake_elsewhere(text, claim):
             changes[i] = ("remove", "elsewhere")
     return changes
+
+
+# Rules lc3 (19 Oct 2026; research/PREREGISTRATION_round23.md), written from the
+# training rounds (1-19 and 22, with guide 1.7's corrections) and checked part by
+# part (research/check_round23_rules.py). Guide 1.7, Rule 8: "fake" aimed at a
+# false spec is not as advertised; possible fake needs the reviewer to say the
+# item is not the real brand or a copy. A sentence the checker flags possible fake:
+#   spec    moves to not as advertised when its "fake" sits beside a spec or a
+#           review-template field, or the sentence itself disputes one: "fake, not
+#           120 watts", "Capacity:Fake!!", "hindi naman fast charging fake"
+#   review  moves when it names no brand or copy word and another sentence of the
+#           review disputes a capacity, the watts or fast charging: "fake!" before
+#           "hindi sya 100,000 mah"
+#   praise  loses possible fake, and gains nothing, when it compares the item with
+#           fakes: "kaysa sa mga peke", "Instead of buying fake buy this"
+# Neither move is made when the sentence names a brand or a copy word, or another
+# sentence says the item is not original, a copy or another brand.
+LC3_REVISION = "lc3"
+LC3_OFF: set[str] = set()
+_FAKE3 = r"(?:fake|fakes|peke|pekeng|faker)"
+FAKE3 = re.compile(rf"(?<!\w){_FAKE3}(?!\w)", re.I)
+_UNIT3 = r"(?:k\s*)?(?:mah|mha|amh|w|watts?|watss|wats?)"
+_NUMSPEC = rf"{_NUM}\s*(?:/\s*)?{_UNIT3}(?!\w)"
+_SPEC3 = (
+    rf"(?:{_NUMSPEC}|(?:\d+\s*)?rpm|\d+\s*mbps|mah|watts?|wattage|fast\s*charg\w*|super\s*fast(?:\s*charg\w*)?|"
+    r"super\s*charg\w*|quick\s*charg\w*|turbo\s*charg\w*|rapid\s*charg\w*|capacity|charg\w*\s+speed|"
+    r"(?:battery\s+)?meter|percentage|read\s*out)"
+)
+_LINK3 = r"(?:is|are|was|were|na|ay|ang|yung|ung|daw|raw|its|it's|so|totally|pala|po|talaga|naman|nman)"
+FAKE_BESIDE_SPEC = (
+    # "fake fast charger", "fake ang fast charging", "fake, not 120 watts", "fake power bank 1000000 amh"
+    re.compile(rf"(?<!\w){_FAKE3}\W*(?:(?!but\b|pero\b|kaso\b|although\b|though\b)[\w']+\W+){{0,3}}?{_SPEC3}", re.I),
+    # "45watts is fake", "20000 mah na fake", "hindi naman fast charging fake", "capacity:fake"
+    re.compile(rf"{_SPEC3}(?:\W*\s*{_LINK3})*\W*{_FAKE3}(?!\w)", re.I),
+    re.compile(rf"(?:capacity|charg\w*\s*speed)\s*:\s*(?:[\w']+\s+){{0,2}}?{_FAKE3}(?!\w)", re.I),
+)
+_SOFT3 = (
+    r"(?:(?:sya|siya|cia|xa|cya|po|naman|nman|nmn|talaga|tlga|tlaga|totoo|totoong|tunay|truly|really|a|an|the|na|pa|real|"
+    r"legit|even|ito|to|yan|yung|ung|it|is|ang|siyang|syang|have|has|ganun|ganon|actually|man|nga|din|rin|ata|ba|reach|more\s+than)\s+)"
+)
+_DISPUTED = rf"(?:{_NUMSPEC}|fast\s*charg\w*|super\s*fast|super\s*charg\w*|quick\s*charg\w*|turbo\s*charg\w*|rapid\s*charg\w*)"
+SPEC_DISPUTE = (
+    re.compile(rf"(?<!\w){_NEG2}\s+{_SOFT3}{{0,4}}{_DISPUTED}", re.I),                          # "not 33watts", "di sya totoong 65w"
+    re.compile(rf"{_NUMSPEC}(?:\s+[\w']+){{0,4}}?\W*\s*(?:pero|but|kaso|yet)(?!\w)", re.I),       # "100 watts daw pero 20 watts lang"
+    re.compile(rf"{_NUMSPEC}\s*\?", re.I),                                                      # "80,000 mah?"
+    re.compile(rf"{_NUMSPEC}\s+(?:lang|lng|laang|only)(?!\w)|(?<!\w)(?:only|lang|lng)\s+{_NUMSPEC}", re.I),
+    re.compile(r"(?<!\w)(?:normal|ordinary|regular)\s+(?:na\s+)?(?:slow\s+)?charg\w*|slower\s+than\s+(?:a\s+)?(?:regular|normal|ordinary)", re.I),
+)
+_COPY3 = (
+    r"orig\w*|orginal|genuine|authentic|copy|replica|class\s*a|clone|imitat\w*|immitat\w*|counterfeit|knock\s*-?\s*off|"
+    r"brand\w*|tatak|oem"
+)
+COPY_WORD = re.compile(rf"(?<!\w)(?:{_COPY3}|{'|'.join(re.escape(b) for b in BRANDS)})(?!\w)", re.I)
+COPY_SAID = re.compile(
+    rf"(?<!\w)(?:{_NEG2}\s+{_SOFT2}{{0,3}}(?:orig\w*|orginal|genuine|authentic|{'|'.join(re.escape(b) for b in BRANDS)})|"
+    r"copy|replica|class\s*a|clone|imitat\w*|immitat\w*|counterfeit|knock\s*-?\s*off|"
+    r"(?:ibang|iba\s+ang|different|other|no|walang|wala\s+ng)\s+(?:brand|tatak)|"
+    rf"{_FAKE3}\s+(?:{'|'.join(re.escape(b) for b in BRANDS)}))(?!\w)",
+    re.I,
+)
+PRAISE3 = (
+    re.compile(
+        r"(?<!\w)(?:kaysa|kesa|keysa|than|unlike|instead\s+of|di\s+tulad|hindi\s+tulad|di\s+katulad|hindi\s+katulad|di\s+gaya|hindi\s+gaya|"
+        r"not\s+like|compared\s+to|vs\.?|versus)\s+(?:(?:sa|ng|nung|mga|the|other|ibang|ibng|those|a|buying|bumili)\s+){0,3}"
+        rf"{_FAKE3}(?!\w)",
+        re.I,
+    ),
+    re.compile(
+        r"(?<!\w)(?:dami|daming|maraming|madaming|madami|lot\s+of|lots\s+of|many|most|so\s+many|nagkalat|nag\s+kalat|kalat)\s+"
+        rf"(?:[\w']+\s+){{0,3}}?{_FAKE3}(?!\w)",
+        re.I,
+    ),
+)
+
+
+def lc3_rules(segments: list[str], tagged: list[dict], listing: dict | None = None) -> dict[int, tuple[str, str]]:
+    """Rules lc3: per sentence flagged possible fake, ("move", part) to not as advertised or ("remove", "praise")."""
+    normalized = [tn.normalize_text(seg) for seg in segments]
+    disputes = [any(p.search(text) for p in SPEC_DISPUTE) for text in normalized]
+
+    def disputed_elsewhere(i: int) -> bool:
+        # the other sentences read joined, as the splitter cuts "50000mah / but cannot ..."
+        rest = " ".join(text for j, text in enumerate(normalized) if j != i)
+        return any(p.search(rest) for p in SPEC_DISPUTE)
+
+    copy_said = [bool(COPY_SAID.search(text)) for text in normalized]
+    changes: dict[int, tuple[str, str]] = {}
+    for i, text in enumerate(normalized):
+        if "counterfeit" not in (tagged[i].get("tags") or []) or not FAKE3.search(text):
+            continue
+        if "praise" not in LC3_OFF and any(p.search(text) for p in PRAISE3):
+            changes[i] = ("remove", "praise")
+            continue
+        if COPY_WORD.search(text) or any(copy_said[j] for j in range(len(normalized)) if j != i):
+            continue
+        if "spec" not in LC3_OFF and (disputes[i] or any(p.search(text) for p in FAKE_BESIDE_SPEC)):
+            changes[i] = ("move", "spec")
+        elif "review" not in LC3_OFF and disputed_elsewhere(i):
+            changes[i] = ("move", "review")
+    return changes
