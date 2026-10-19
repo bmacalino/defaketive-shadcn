@@ -53,10 +53,10 @@
 	});
 </script>
 
-<svelte:head><title>Scan history · DeFaketive</title></svelte:head>
+<svelte:head><title>History · DeFaketive</title></svelte:head>
 
 <header class="space-y-1">
-	<h1 class="text-3xl font-semibold tracking-tight">Scan history</h1>
+	<h1 class="text-3xl font-semibold tracking-tight">History</h1>
 	<p class="text-muted-foreground">Products you scanned or opened, grouped by date. Only you see this list.</p>
 </header>
 

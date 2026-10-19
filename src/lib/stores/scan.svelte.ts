@@ -17,6 +17,8 @@ export interface ScanSummary extends Partial<Omit<Job, 'state'>> {
 	productLink?: string;
 	resultLinks?: string[];
 	resultsPending?: boolean;
+	/** The finished scan's report (or its problem) has been opened, so the header no longer points at it. */
+	seen?: boolean;
 }
 
 export interface Feedback {
@@ -26,6 +28,10 @@ export interface Feedback {
 }
 
 const STORAGE_KEY = 'defaketive-home-scan';
+
+/** The heading of the notice shown while a scan waits for a person: the visitor, or on the public site the team. */
+export const needsYouTitle = (job: { needs_team?: boolean } | null | undefined) =>
+	job?.needs_team ? 'Waiting for our team' : 'This scan needs you';
 const POLL_MS = 2500;
 
 /** The guest screen lives under /scan. A scan started there stays there. */
@@ -192,6 +198,33 @@ class Scan {
 		}
 	}
 
+	/**
+	 * Reviews the DeFaketive browser extension collected on a Lazada product page (/check-from-extension). The
+	 * server checks that they add up and analyses them; the job is then followed like a live scan's.
+	 * Returns `{ failure }` (why it could not start), `{ saved }` (the product's report is recent, so the server kept
+	 * it and nothing was checked: open that report), or null when it started.
+	 */
+	async submitCollected(
+		product: Record<string, unknown>
+	): Promise<{ failure: string } | { saved: { link: string; days_ago: number; keeps_for: number } } | null> {
+		if (this.busy) return { failure: 'Another check is still running. Wait for it to finish, then try again.' };
+		this.feedback = null;
+		this.busy = true;
+		let started = false;
+		try {
+			const data = await api('/api/extension/check', json('POST', { product }));
+			if (data.existing) return { saved: data.existing };
+			if (!data.job) return { failure: 'The check could not start. Please try again.' };
+			started = true;
+			this.#poll(data.job.id, data.job);
+			return null;
+		} catch (error) {
+			return { failure: (error as Error).message || 'The check could not start. Please try again.' };
+		} finally {
+			if (!started) this.busy = false;
+		}
+	}
+
 	async #poll(id: string, initial: Partial<Job> = {}) {
 		const token = ++this.#token;
 		this.busy = true;
@@ -261,8 +294,13 @@ class Scan {
 
 				// The scraper opened a Chrome window for a login or a check. Say so once, wherever the person is.
 				if (job.needs_you && !this.summary?.needs_you) {
-					toast.warning('Your scan needs you', { description: job.message });
-					prefs.notify('Your DeFaketive scan needs you', job.message || 'Look for the Chrome window that just opened.');
+					if (job.needs_team) {
+						toast.warning('Your check is waiting for our team', { description: job.message });
+						prefs.notify('Your DeFaketive check is waiting for our team', job.message || 'A team member has to clear a Lazada check.');
+					} else {
+						toast.warning('Your scan needs you', { description: job.message });
+						prefs.notify('Your DeFaketive scan needs you', job.message || 'Look for the Chrome window that just opened.');
+					}
 				}
 				this.#set(job);
 				setTimeout(tick, POLL_MS);
@@ -278,6 +316,17 @@ class Scan {
 			}
 		};
 		return tick();
+	}
+
+	/**
+	 * The finished scan has been looked at: its report was opened (`link`, from the report page), or the header
+	 * or Home button took the person to it. A running scan is never marked.
+	 */
+	markSeen(link?: string) {
+		const current = this.summary;
+		if (!current || current.seen || (current.state !== 'complete' && current.state !== 'error')) return;
+		if (link !== undefined && (!current.productLink || linkIdentity(link) !== linkIdentity(current.productLink))) return;
+		this.#set({ ...current, seen: true });
 	}
 
 	/** The Home status card's button: open the report, the results, or the scan's progress. */
@@ -304,6 +353,7 @@ class Scan {
 				});
 				return this.open();
 			}
+			this.markSeen();
 			if (safeLink(scan.productLink)) return goto(reportHref(scan.productLink!));
 			if (onGuestScreen()) {
 				this.feedback = NOTHING_TO_OPEN;
@@ -316,6 +366,7 @@ class Scan {
 		await goto(onGuestScreen() ? '/scan' : '/app/analyze');
 		if (scan.state === 'attention' && scan.id) this.#poll(scan.id, scan as Partial<Job>);
 		if (scan.state === 'error') {
+			this.markSeen();
 			this.feedback = {
 				title: 'Live scan stopped',
 				message: scan.message || 'Try another product link.',

@@ -1,6 +1,8 @@
 <script lang="ts">
 	import ArrowDownIcon from '@lucide/svelte/icons/arrow-down';
+	import ArrowRightIcon from '@lucide/svelte/icons/arrow-right';
 	import BoxesIcon from '@lucide/svelte/icons/boxes';
+	import PuzzleIcon from '@lucide/svelte/icons/puzzle';
 	import FileSearchIcon from '@lucide/svelte/icons/file-search';
 	import GlobeIcon from '@lucide/svelte/icons/globe';
 	import LanguagesIcon from '@lucide/svelte/icons/languages';
@@ -49,11 +51,12 @@
 				DeFaketive reads customer reviews from Lazada PH (in English, Filipino or Taglish) and shows you
 				what buyers report about fakes, defects and safety problems, in their own words.
 			</p>
+			<!-- The box beside this text is the way to check; these lead to the other way, and to how it works. -->
 			<div class="flex flex-wrap items-center gap-3">
-				<Button size="lg" href={auth.user ? '/app/analyze' : '/scan'}>Try it free</Button>
-				<Button size="lg" variant="outline" href="#how"><ArrowDownIcon /> How it works</Button>
+				<!-- Not on phones and tablets: they can't add extensions (the section further down still explains it). -->
+				<Button size="lg" variant="outline" class="max-md:hidden" href="/extension"><PuzzleIcon /> Get the extension</Button>
+				<Button size="lg" variant="ghost" href="#how"><ArrowDownIcon /> How it works</Button>
 			</div>
-			<p class="text-muted-foreground text-sm">No sign up required</p>
 		</div>
 		<Card class="p-6">
 			<div class="flex items-center justify-between">
@@ -67,9 +70,9 @@
 	<section class={['border-y', catalog.statsFailed && !catalog.stats && 'hidden']} aria-label="DeFaketive in numbers">
 		<dl class="mx-auto grid w-full max-w-6xl grid-cols-3 gap-4 px-4 py-8 text-center md:px-6">
 			{#if catalog.stats}
-				<div><dd class="text-3xl font-semibold tabular-nums"><CountUp value={catalog.stats.marketplaces} /></dd><dt class="text-muted-foreground text-sm">{catalog.stats.marketplaces === 1 ? 'Marketplace supported' : 'Marketplaces supported'}</dt></div>
 				<div><dd class="text-3xl font-semibold tabular-nums"><CountUp value={catalog.stats.products} /></dd><dt class="text-muted-foreground text-sm">Products checked</dt></div>
 				<div><dd class="text-3xl font-semibold tabular-nums"><CountUp value={catalog.stats.reviews} /></dd><dt class="text-muted-foreground text-sm">Reviews analyzed</dt></div>
+				<div><dd class="text-3xl font-semibold">{platforms.join(', ')}</dd><dt class="text-muted-foreground text-sm">The marketplace we check</dt></div>
 			{:else}
 				{#each [1, 2, 3] as n (n)}<Skeleton class="mx-auto h-14 w-32" />{/each}
 			{/if}
@@ -109,13 +112,18 @@
 		</div>
 	</section>
 
-	<section class="mx-auto w-full max-w-6xl space-y-4 px-4 py-16 md:px-6" aria-labelledby="platforms-title">
-		<h2 id="platforms-title" class="text-sm font-semibold tracking-wide uppercase">Supported marketplace</h2>
-		<ul class="flex flex-wrap gap-3">
-			{#each platforms as platform (platform)}
-				<li class="rounded-full border px-4 py-1.5 text-sm font-medium">{platform}</li>
-			{/each}
-		</ul>
+	<section class="mx-auto w-full max-w-6xl px-4 py-16 md:px-6" aria-labelledby="extension-title">
+		<Card class="grid gap-6 p-6 md:grid-cols-[1fr_auto] md:items-center md:p-8">
+			<div class="space-y-2">
+				<p class="text-muted-foreground flex items-center gap-2 text-sm font-medium"><PuzzleIcon class="size-4" aria-hidden="true" /> For Chrome and Edge on a computer</p>
+				<h2 id="extension-title" class="text-2xl font-semibold tracking-tight">Check right on Lazada</h2>
+				<p class="text-muted-foreground max-w-2xl">
+					Add the DeFaketive extension and a Check with DeFaketive button appears on Lazada PH product pages. No copying
+					links.
+				</p>
+			</div>
+			<Button size="lg" variant="outline" href="/extension">Get the extension <ArrowRightIcon /></Button>
+		</Card>
 	</section>
 
 	<section id="faq" class="mx-auto w-full max-w-3xl space-y-6 px-4 py-16 md:px-6" aria-labelledby="faq-title">

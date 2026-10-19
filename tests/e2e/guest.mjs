@@ -76,7 +76,9 @@ async function axe(page, label) {
 	await page.screenshot({ path: 'tests/e2e/shots/guest_scan.png', fullPage: true });
 	await page.getByRole('button', { name: 'Open report' }).click();
 	await page.waitForURL(/\/scan\/report\?link=/);
-	await page.getByRole('heading', { level: 1 }).waitFor({ timeout: 15000 });
+	// Wait for the report itself: the address changes before the new page is drawn, and the guest screen's own
+	// heading is a level-1 heading too.
+	await page.locator('[aria-label="Verdict"]').waitFor({ timeout: 15000 });
 	check((await inApp(page)) === 0, 'the report opens on the guest screen (no app menu)');
 	check(await page.getByText("You're viewing this as a guest").isVisible(), 'the guest report says what an account adds');
 	const noteAfterVerdict = await page.evaluate(() => {

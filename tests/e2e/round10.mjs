@@ -77,18 +77,24 @@ check(pool.products.every((p) => p.updated_at || p.analysis_date || p.analyzed_a
 	check(filters.join(' | ') === 'All | Flagged | Negative | Mixed or unclear | Positive', `review filters: ${filters.join(' | ')}`);
 	await axe(page, 'report, Reviews tab');
 
-	// A product whose collection was not by star level: "N of M".
-	await openReport(page, FEW);
-	text = await pageText(page);
-	check(/We read 15 of this listing's 377 reviews\./.test(text), 'a partly read listing says "We read 15 of this listing\'s 377 reviews."');
-	const fewDate = await page.evaluate(() => [...document.querySelectorAll('dl > div')].find((el) => el.querySelector('dt')?.textContent.trim() === 'Report date')?.querySelector('dd')?.textContent.trim() ?? '');
-	check(/^[A-Z][a-z]{2} \d{1,2}, \d{4}$/.test(fewDate), `a re-checked product shows its date too (${fewDate})`);
+	// A product whose collection was not by star level: "N of M". Opened in another account, so this account's Home
+	// only holds the products it is meant to (since the re-check of 18 Oct 2026 this one carries a safety mention).
+	{
+		const other = await open();
+		await openReport(other.page, FEW);
+		text = await pageText(other.page);
+		check(/We read 15 of this listing's 377 reviews\./.test(text), 'a partly read listing says "We read 15 of this listing\'s 377 reviews."');
+		const fewDate = await other.page.evaluate(() => [...document.querySelectorAll('dl > div')].find((el) => el.querySelector('dt')?.textContent.trim() === 'Report date')?.querySelector('dd')?.textContent.trim() ?? '');
+		check(/^[A-Z][a-z]{2} \d{1,2}, \d{4}$/.test(fewDate), `a re-checked product shows its date too (${fewDate})`);
+		errors.push(...other.errors);
+		await other.context.close();
+	}
 
 	// ---- C. Home after checking one product with no warnings ----
 	await page.goto(base + '/app/home', { waitUntil: 'networkidle' });
 	await settle(page, 1500);
-	// Two reports were opened: the clean one and the one with too few reviews. Neither has a warning.
-	check(await page.getByText('Nothing needs a look right now.').isVisible(), 'Home, no warnings among the checked products: "Nothing needs a look right now."');
+	// One report was opened: the clean one. It has no warning.
+	check(await page.getByText('Nothing needs a look right now.').isVisible(), `Home, no warnings among the checked products: "Nothing needs a look right now." (${(await page.locator('[aria-labelledby="attention-title"]').innerText()).replace(/\s+/g, ' ').slice(0, 160)})`);
 	check(await page.getByText('No warning is not proof that a product is safe.').isVisible(), 'and it adds that no warning is not proof of safety');
 	check((await page.getByRole('heading', { name: 'How it works' }).count()) === 0 && (await page.getByRole('heading', { name: 'Shopping safety tips' }).count()) === 0, 'Home, once something is checked: the explainers give way to the results');
 
@@ -98,8 +104,8 @@ check(pool.products.every((p) => p.updated_at || p.analysis_date || p.analyzed_a
 	await settle(page, 1800);
 	const look = page.locator('[aria-labelledby="attention-title"]');
 	const names = await look.locator('article a[title]').evaluateAll((els) => els.map((el) => el.getAttribute('title')));
-	check(names.length === 1 && names[0] === CAUTION.name, '"Needs a look" lists the product with a warning');
-	check(await look.getByText('1 of the 3 products you checked has a warning. Most serious first.').isVisible(), 'it says how many of the checked products have a warning');
+	check(names.length === 1 && names[0] === CAUTION.name, `"Needs a look" lists the product with a warning (${names.join(' | ')})`);
+	check(await look.getByText('1 of the 2 products you checked has a warning. Most serious first.').isVisible(), `it says how many of the checked products have a warning (${(await look.locator('p').first().textContent())?.trim()})`);
 	check((await look.getByRole('link', { name: 'Caution · 1' }).getAttribute('href')) === '/app/history?filter=caution', 'its "See all" link opens History on that group');
 	const order = await page.evaluate(() => {
 		const top = (selector) => document.querySelector(selector)?.getBoundingClientRect().top ?? -1;
@@ -114,7 +120,7 @@ check(pool.products.every((p) => p.updated_at || p.analysis_date || p.analyzed_a
 	await settle(page, 1500);
 	text = await pageText(page);
 	check(text.includes('Products checked') && !text.includes('Total scans'), 'History: the first number is "Products checked"');
-	check(/\b3 products\b/.test(text) && text.includes('Showing 3 of 3 products · Your 100 most recent are kept'), 'History: the day and the footer count products');
+	check(/\b2 products\b/.test(text) && text.includes('Showing 2 of 2 products · Your 100 most recent are kept'), 'History: the day and the footer count products');
 
 	// ---- A. The check page ----
 	await page.goto(base + '/app/analyze', { waitUntil: 'networkidle' });

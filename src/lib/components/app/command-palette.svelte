@@ -10,6 +10,7 @@
 	import LogOutIcon from '@lucide/svelte/icons/log-out';
 	import MoonIcon from '@lucide/svelte/icons/moon';
 	import PackageSearchIcon from '@lucide/svelte/icons/package-search';
+	import PuzzleIcon from '@lucide/svelte/icons/puzzle';
 	import ScanSearchIcon from '@lucide/svelte/icons/scan-search';
 	import SettingsIcon from '@lucide/svelte/icons/settings';
 	import UserPlusIcon from '@lucide/svelte/icons/user-plus';
@@ -39,6 +40,7 @@
 	const guestPages: Page[] = [
 		{ href: '/scan', label: 'Check a product', icon: ScanSearchIcon, words: 'scan analyze link paste new guest' },
 		{ href: '/#how', label: 'How it works', icon: ListOrderedIcon, words: 'steps guide' },
+		{ href: '/extension', label: 'Get the extension', icon: PuzzleIcon, words: 'browser chrome edge install lazada button' },
 		{ href: '/#faq', label: 'FAQ', icon: CircleHelpIcon, words: 'questions help verdicts' },
 		{ href: '/#about', label: 'About', icon: InfoIcon, words: 'team project' }
 	];
@@ -49,6 +51,7 @@
 		{ href: '/app/history', label: 'History', icon: HistoryIcon, words: 'scans past' },
 		{ href: '/app/wishlist', label: 'Wishlist', icon: HeartIcon, words: 'saved shortlist' },
 		{ href: '/app/settings', label: 'Settings', icon: SettingsIcon, words: 'account preferences dark alerts' },
+		{ href: '/app/extension', label: 'Get the extension', icon: PuzzleIcon, words: 'browser chrome edge install lazada button' },
 		{ href: '/app/about', label: 'About', icon: InfoIcon, words: 'team project' },
 		{ href: '/app/faq', label: 'FAQ', icon: CircleHelpIcon, words: 'questions help verdicts' }
 	];

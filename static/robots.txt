@@ -1,3 +1,7 @@
-# allow crawling everything by default
+# The landing page may be listed by search engines. Reports name real products and quote real reviews, so
+# they are not listed; the app's own pages and its data are not for search engines either.
 User-agent: *
-Disallow:
+Disallow: /api/
+Disallow: /app/
+Disallow: /scan/report
+Disallow: /check-from-extension

@@ -52,6 +52,7 @@
 	} from '#lib/product.js';
 	import { auth } from '#lib/stores/auth.svelte.js';
 	import { library } from '#lib/stores/library.svelte.js';
+	import { scan } from '#lib/stores/scan.svelte.js';
 	import { ui } from '#lib/stores/ui.svelte.js';
 	import type { Product } from '#lib/types.js';
 	import { cn } from '#lib/utils.js';
@@ -110,6 +111,8 @@
 				recommendations = data.recommendations ?? [];
 				loading = false;
 				library.remember(data.product);
+				// The report of the scan just finished is open: the header stops pointing at it.
+				scan.markSeen(data.product.link);
 			})
 			.catch((error: unknown) => {
 				if (id !== requestId) return;
@@ -167,11 +170,12 @@
 
 	// Beside the name and the stars: what a shopper recognises the listing by.
 	const identity = $derived([platformName(product), product?.price ? money(product.price) : ''].filter(Boolean).join(' · '));
-	// Under the verdict: the numbers behind the report.
+	// Under the verdict: the numbers behind the report. (No "Category": saved products carry none, so it only
+	// ever said "Not specified".)
 	const details = $derived([
 		['Positive reviews', weighted ? `${positive.percent.toFixed(0)}% (adjusted)` : `${positive.value} / ${uniqueCount}`],
 		['Negative reviews', weighted ? `${negative.percent.toFixed(0)}% (adjusted)` : `${negative.value} / ${uniqueCount}`],
-		['Category', product?.category || 'Not specified'],
+		['Flagged reviews', `${flagged.length} / ${uniqueCount}`],
 		['Report date', date ?? 'Unavailable']
 	]);
 
@@ -285,9 +289,8 @@
 	<Button variant="ghost" size="sm" class="-ml-2" onclick={() => goto(guest ? '/scan' : '/app/analyze')}>
 		<ArrowLeftIcon /> Check another product
 	</Button>
-	<p class="text-muted-foreground text-sm" aria-live="polite">
-		{#if loading}Loading product report…{:else if product}{verdict.available ? `Report ready · ${uniqueCount.toLocaleString()} reviews analyzed` : 'Not analyzed yet'}{/if}
-	</p>
+	<!-- Only while loading: once the report is here, the count of reviews read sits under the verdict. -->
+	<p class="text-muted-foreground text-sm" aria-live="polite">{#if loading}Loading product report…{/if}</p>
 </div>
 
 <!-- What an account adds. It sits under the verdict: the answer comes first, the offer after. -->
@@ -460,8 +463,9 @@
 	<Tabs bind:value={tab} id="report-tabs" class="scroll-mt-20 gap-6">
 		<TabsList class="w-full sm:w-fit">
 			<TabsTrigger value="overview">Summary</TabsTrigger>
-			<TabsTrigger value="evidence">Reviews<span class="hidden sm:inline">&nbsp;· {flagged.length} flagged</span></TabsTrigger>
-			<TabsTrigger value="similar">Similar<span class="hidden sm:inline">&nbsp;products{recommendations.length ? ` · ${recommendations.length}` : ''}</span></TabsTrigger>
+			<!-- One span per label: the tab's own spacing would otherwise open a gap inside it. -->
+			<TabsTrigger value="evidence"><span>Reviews<span class="hidden sm:inline">&nbsp;· {flagged.length} flagged</span></span></TabsTrigger>
+			<TabsTrigger value="similar"><span>Similar<span class="hidden sm:inline">&nbsp;products{recommendations.length ? ` · ${recommendations.length}` : ''}</span></span></TabsTrigger>
 		</TabsList>
 		<TabsContent value="overview" class="animate-in fade-in-0 slide-in-from-bottom-1 grid gap-6 duration-200">
 	<div class="grid gap-6">

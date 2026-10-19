@@ -31,7 +31,8 @@
 				</span>
 			</span>
 			<span>{chip.label}</span>
-			<span class="text-muted-foreground font-normal">· What reviewers report</span>
+			<!-- On a phone this would drop onto a line of its own; there the headline and the "guide, not proof" line say it. -->
+			<span class="text-muted-foreground font-normal max-sm:sr-only">· What reviewers report</span>
 		</div>
 		<h2 class="verdict-step text-foreground text-2xl leading-tight font-semibold tracking-tight md:text-3xl" style="--d: 0.32s">{verdict.headline}</h2>
 		{#if verdict.detail}<p class="verdict-step text-foreground/80 text-base" style="--d: 0.44s">{verdict.detail}</p>{/if}

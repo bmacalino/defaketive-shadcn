@@ -124,7 +124,7 @@ async function axe(page, label) {
 	});
 	check(top.order && top.oneCard, 'the verdict comes right after the name; the next step and then the numbers follow, in one card');
 	check(top.beside.includes('4.2/5') && top.beside.includes('Lazada PH · ₱499.00') && !top.beside.includes('out of 5'), `beside the name: the rating once, the marketplace and the price (${top.beside.slice(-40)})`);
-	check(top.terms.join(' | ') === 'Positive reviews | Negative reviews | Category | Report date', `under the verdict: ${top.terms.join(' | ')}`);
+	check(top.terms.join(' | ') === 'Positive reviews | Negative reviews | Flagged reviews | Report date', `under the verdict: ${top.terms.join(' | ')}`);
 
 	// ---- The kinds of problem, most serious first, in two groups ----
 	const groups = await page.evaluate(() => [...document.querySelectorAll('#report-findings section')].map((section) => ({

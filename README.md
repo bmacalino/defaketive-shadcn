@@ -109,6 +109,70 @@ If the server runs somewhere else, set `DEFAKETIVE_API` first, for example
 `set DEFAKETIVE_API=http://127.0.0.1:8000`. If the original app lives somewhere else, set `DEFAKETIVE_ORIGINAL`
 to its folder.
 
+## Putting it online
+
+**For the public: `public.cmd`** (not `start.cmd`). It builds the app when needed and starts `serve.py` on
+<http://127.0.0.1:8080>: one proper web server (Waitress) that serves the screens and `/api` from the same address.
+Keep its window open. Cloudflare Tunnel then points the public web address at that port:
+
+1. Make a free Cloudflare account and add the project's domain to it (Cloudflare must answer for the domain).
+2. Install `cloudflared` on this PC and create a tunnel that sends the domain to `http://127.0.0.1:8080`
+   (Cloudflare's dashboard: Zero Trust, Networks, Tunnels). Install it as a Windows service so it starts by itself.
+3. Set the PC to never sleep, and make `public.cmd` start when Windows starts.
+4. Check from a phone on mobile data, then share the address.
+
+Without a domain, `cloudflared tunnel --url http://127.0.0.1:8080` gives a free random address that changes on
+every restart: good enough for one demo day, not for a link in a paper or a survey.
+
+`public.cmd` runs `serve.py --https --proxy cloudflare`: sign-in cookies only travel over https, and the visitor's
+address is read from Cloudflare's header (only on requests that come from this PC, where `cloudflared` runs). The
+app must stay ONE process: the progress of running scans lives in its memory.
+
+**What protects the app** (`protections.py`, part of `server.py`, so it is on for `start.cmd` and the tests too):
+
+- **Old routes closed.** `/api/upload`, `/api/evaluation`, `/api/survey`, `/api/admin/*` and `/api/export/*`
+  answered anyone without signing in; the new screens never use them. They answer 404 now
+  (`DEFAKETIVE_OLD_ROUTES=1` opens them again, for the original's own page on port 5000).
+- **Daily limits on new checks** (looking up a saved report is never counted). Guests: 3 per browser, as before,
+  and 10 per internet connection (`DEFAKETIVE_NETWORK_DAILY_SCANS`; phone networks put many people behind one
+  address). Accounts: 10 each (`DEFAKETIVE_ACCOUNT_DAILY_SCANS`). The whole site: 100
+  (`DEFAKETIVE_SITE_DAILY_SCANS`). Counts live in the accounts database; a connection is stored only as a scrambled
+  code, and counts older than a week are deleted.
+- **One Chrome at a time.** Checks wait their turn and say how many are ahead. With 6 running or waiting
+  (`DEFAKETIVE_MAX_ACTIVE_SCANS`), a new one is told to try again in a few minutes.
+- **No copy per visitor.** A new browser session starts empty (every saved report comes from the shared pool), and
+  idle sessions are forgotten. Before, every new visitor, crawlers included, got and kept a copy of the newest scan
+  and saved it into the database again.
+- **No reviewer names** in any report the server sends. The database keeps them; no screen ever showed them.
+- **For the public only** (`serve.py`): when Lazada asks the scanner for a login or a check, the visitor is told a
+  team member has to clear it at the scanning PC (the screens say "Waiting for our team").
+
+**Backups.** `serve.py` copies both databases to `backups/daily/<date>/` a minute after it starts and then once a
+day, keeping the newest seven days. By hand: `scripts\backup_databases.py`. To restore, close the app and copy a
+day's two files back over the originals.
+
+**Search engines** may list the landing page only (`static/robots.txt`): reports name real products.
+
+### The browser extension: each shopper collects their own reviews
+
+`extension/` is a Chrome/Edge extension that adds **Check with DeFaketive** to Lazada PH product pages. It reads the
+reviews in the shopper's own browser, the same way the scanner reads them, and opens the report here
+(`/check-from-extension`). The server checks that the numbers add up (`extension_api.py`, `POST
+/api/extension/check`, signed-in accounts only, counted against the daily limits) and analyses them like a scan. So
+the site can run on a rented server with no Chrome, no team PC and no team Lazada login; phones (no extensions) can
+still open every saved report. How to install, build and publish it: `extension/README.md`.
+
+**A recent report is not replaced.** Reviews a browser sends can be made to add up but cannot be proven real, and a
+saved report is what everybody sees and what "Similar products" is picked from. So when a listing's report is less
+than 30 days old (`DEFAKETIVE_EXTENSION_RECHECK_DAYS`, 0 turns the rule off), `/api/extension/check` keeps it: it
+answers with that report, analyses and saves nothing, and does not count the check against the daily limits; the
+page opens the saved report and says how old it is. A listing nobody has checked yet is taken on trust, so a false
+first report would hold the listing for 30 days; the team can delete it, or set the variable to 0 to re-check.
+
+With the extension doing the collecting, the server does the analysing: measured on 15 Oct 2026, `serve.py` uses
+about 0.5 GB at rest and 0.62 GB at its peak with 182 reports, before the review model loads (about 0.15 GB more),
+so a rented server needs 2 GB.
+
 ## Screens
 
 | Address | Screen |
@@ -392,7 +456,7 @@ folder, never the real one:
 
 ## Tests
 
-`tests/e2e/` holds 18 test files, about 500 checks. They drive the Chrome that is already installed and walk the
+`tests/e2e/` holds 20 test files, about 550 checks (two of them for the browser extension, see `extension/README.md`). They drive the Chrome that is already installed and walk the
 app the way a person would: signing up and in, a pretend live scan, the guest screen, the lock on the app, every
 verdict group and its colour, the brand colour, the wording, error screens, tap targets on a phone, the report, and accessibility
 (axe, WCAG 2.1 AA, light and dark).
@@ -411,12 +475,19 @@ What the tests touch:
 
 - **Accounts:** they create test accounts in a scratch database (`tests/.tmp/accounts-test.db`), never in the
   real `instance/accounts.db`.
-- **Products:** they read the saved products in the original's `defaketive.db` and add or remove none. (The
-  original app itself saves the product of its newest scan file again each time a new browser session starts, with
-  or without these tests, so that one product's report date moves to today.) Several
+- **Products:** they read the saved products in the original's `defaketive.db` and add or remove none. Several
   checks use products that are saved there by name ("Type C Fast Charging…", "DoubleShock…", "U19 Macaron…"); if
   those are ever removed, those checks need another product.
 - **Marketplaces:** none is contacted. Live scans are pretended inside the test browser.
+
+The server's own tests (`tests/test_*.py`: the saved-products pool, `protections.py`, `serve.py` and the backups)
+run with the original app's Python, from this folder:
+
+```
+..\Capstone-Version-Control-Version-1.1\.venv\Scripts\python.exe -m unittest discover -s tests -p "test_*.py"
+```
+
+They use a temporary accounts database and never start a real scan.
 
 ## Version control
 

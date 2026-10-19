@@ -1,9 +1,12 @@
 <script lang="ts">
+	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
 	import ArrowRightIcon from '@lucide/svelte/icons/arrow-right';
 	import CheckIcon from '@lucide/svelte/icons/check';
 	import CircleAlertIcon from '@lucide/svelte/icons/circle-alert';
 	import LinkIcon from '@lucide/svelte/icons/link';
+	import PuzzleIcon from '@lucide/svelte/icons/puzzle';
+	import SearchIcon from '@lucide/svelte/icons/search';
 	import { onMount } from 'svelte';
 	import { Alert, AlertDescription, AlertTitle } from '#lib/components/ui/alert/index.js';
 	import { Kbd } from '#lib/components/ui/kbd/index.js';
@@ -24,14 +27,12 @@
 	} from '#lib/product.js';
 	import { catalog } from '#lib/stores/catalog.svelte.js';
 	import { library } from '#lib/stores/library.svelte.js';
-	import { scan } from '#lib/stores/scan.svelte.js';
+	import { needsYouTitle, scan } from '#lib/stores/scan.svelte.js';
 	import { ui } from '#lib/stores/ui.svelte.js';
 	import type { Marketplace } from '#lib/types.js';
 
 	let query = $state('');
-	// The usual limits for a fresh scan: up to 6 products when searching by name, up to 100 reviews each
-	// (Lazada reads up to 60 from each star level instead).
-	const productCount = 6;
+	// One product per check. Lazada reads up to 60 reviews from each star level; 100 is the server's general limit.
 	const reviewCount = 100;
 
 	// A link pasted on Home or the landing page arrives in the address.
@@ -45,60 +46,46 @@
 		}
 	});
 
+	// This page takes a product link. Words instead of a link are a search for a product already checked: that
+	// lives on Products, and the page points there.
 	const context = $derived(queryContext(query));
 	const hasQuery = $derived(query.trim() !== '');
+	const isName = $derived(hasQuery && !context.isUrl);
+	const productsSearch = $derived(`/app/products?q=${encodeURIComponent(query.trim())}`);
 	const unsupported = $derived(context.isUrl && !context.platform);
 	// A Shopee or Temu link: a report saved from it still opens, but it is never checked (Lazada PH only).
 	const otherMarket = $derived(Boolean(context.platform) && !scannable(context.platform));
 	const chosen = $derived<Marketplace>(context.platform ?? 'lazada');
-	const lazada = $derived(chosen === 'lazada');
 	const match = $derived(
 		context.platform
 			? (catalog.lookup(query) ?? library.mine.find((product) => linkIdentity(product.link) === linkIdentity(query)))
 			: null
 	);
-	const disabled = $derived(scan.busy || !hasQuery || unsupported || (otherMarket && !match));
+	const disabled = $derived(scan.busy || !context.platform || (otherMarket && !match));
 
-	// What the main button does depends on what was pasted.
+	// One main button. A product we already have a report for opens it; checking it again is the second button.
 	const primary = $derived(
-		context.platform && match
+		match
 			? { intent: 'saved', label: 'Open report' }
 			: context.platform && !otherMarket
 				? { intent: 'live', label: `Check this ${MARKETPLACES[context.platform]} product` }
-				: hasQuery && !context.isUrl
-					? { intent: 'saved', label: 'Search saved reports' }
-					: { intent: 'saved', label: 'Check' }
+				: { intent: 'live', label: 'Check this product' }
 	);
-	const fresh = $derived(
-		context.platform && match && !otherMarket
-			? 'Check again for new reviews'
-			: !context.platform && hasQuery && !unsupported
-				? 'Collect fresh reviews'
-				: ''
-	);
+	const again = $derived(Boolean(match) && !otherMarket);
 
-	const plan = $derived(
-		lazada
-			? `up to ${LAZADA_REVIEWS_PER_STAR} reviews from each star level`
-			: `up to ${reviewCount} reviews each`
-	);
-	const products = $derived(context.platform ? 1 : productCount);
-	const summary = $derived(
-		hasQuery && !unsupported && !otherMarket
-			? `Fresh collection settings: ${MARKETPLACES[chosen]} · up to ${products} product${products === 1 ? '' : 's'} · ${plan}`
-			: ''
-	);
+	// Enter on a product name goes where the hint under the box points. (The button is off for a name, and a form
+	// whose button is off does not submit on Enter.)
+	function nameEnter(event: KeyboardEvent) {
+		if (event.key !== 'Enter' || !isName || scan.busy) return;
+		event.preventDefault();
+		goto(productsSearch);
+	}
 
 	function submit(event: SubmitEvent) {
 		event.preventDefault();
+		if (disabled) return;
 		const intent = (event.submitter as HTMLElement | null)?.dataset.intent ?? primary.intent;
-		scan.search({
-			query,
-			marketplace: chosen,
-			live: intent === 'live',
-			productCount,
-			reviewCount
-		});
+		scan.search({ query, marketplace: chosen, live: intent === 'live', productCount: 1, reviewCount });
 	}
 
 	const running = $derived(scan.summary?.state === 'running' && scan.busy);
@@ -134,29 +121,38 @@
 	<Card>
 		<CardHeader>
 			<CardTitle>Paste a product link</CardTitle>
-			<CardDescription>
-				From Lazada PH. You can also search saved reports by name.
-			</CardDescription>
+			<CardDescription>Copy the address of a Lazada PH product page and paste it here.</CardDescription>
 		</CardHeader>
 		<CardContent>
-			<form onsubmit={submit} class="grid gap-4" aria-describedby="scan-summary">
+			<form onsubmit={submit} class="grid gap-4">
 				<div class="grid gap-2">
-					<Label for="search-query">Product link or product name</Label>
+					<Label for="search-query">Product link</Label>
 					<InputGroup class="h-11">
 						<InputGroupAddon><LinkIcon /></InputGroupAddon>
 						<InputGroupInput
 							id="search-query"
 							data-scan-input
 							name="query"
-							placeholder="Paste a product link..."
+							placeholder="Paste a Lazada PH product link..."
 							autocomplete="off"
 							bind:value={query}
+							onkeydown={nameEnter}
 							disabled={scan.busy}
 							aria-invalid={unsupported}
+							aria-describedby="query-hint"
 						/>
 						<InputGroupAddon align="inline-end" class="max-md:hidden"><Kbd title="Press / to jump here">/</Kbd></InputGroupAddon>
 					</InputGroup>
-					<p class="text-muted-foreground text-xs">Lazada PH product links</p>
+					<div id="query-hint" class="contents">
+					{#if isName}
+						<p class="flex items-start gap-2 text-sm" aria-live="polite">
+							<SearchIcon class="text-muted-foreground mt-0.5 size-4 shrink-0" aria-hidden="true" />
+							<span>
+								That's a name, not a link. Looking for a product someone already checked?
+								<a class="tap text-primary inline-flex items-center gap-1 font-medium underline underline-offset-4" href={productsSearch}>Search Products for “{query.trim()}” <ArrowRightIcon class="size-4" /></a>
+							</span>
+						</p>
+					{/if}
 					{#if context.isUrl}
 						<p
 							class="flex items-center gap-1.5 text-sm {unsupported || (otherMarket && !match)
@@ -181,17 +177,18 @@
 						<p class="bg-muted rounded-lg px-3 py-2 text-sm" aria-live="polite">
 							Saved report found: <span class="font-medium">{match.name || `${MARKETPLACES[context.platform!]} product`}</span>
 						</p>
+					{:else if context.platform && !otherMarket}
+						<p class="text-muted-foreground text-xs">We read up to {LAZADA_REVIEWS_PER_STAR} reviews from each star level.</p>
 					{/if}
+					</div>
 				</div>
-
-				<p id="scan-summary" class="text-muted-foreground text-xs" hidden={!summary}>{summary}</p>
 
 				<div class="flex flex-wrap gap-2">
 					<Button type="submit" size="lg" {disabled} data-intent={primary.intent}>
 						{primary.label} <ArrowRightIcon />
 					</Button>
-					{#if fresh}
-						<Button type="submit" size="lg" variant="outline" {disabled} data-intent="live">{fresh}</Button>
+					{#if again}
+						<Button type="submit" size="lg" variant="outline" {disabled} data-intent="live">Check again for new reviews</Button>
 					{/if}
 				</div>
 
@@ -219,7 +216,7 @@
 						{#if scan.summary?.needs_you}
 							<Alert class="tone-caution border-(--tone)/50 bg-(--tone-soft) *:[svg]:text-(--tone)">
 								<CircleAlertIcon />
-								<AlertTitle>This scan needs you</AlertTitle>
+								<AlertTitle>{needsYouTitle(scan.summary)}</AlertTitle>
 								<AlertDescription>{scan.summary.message}</AlertDescription>
 							</Alert>
 						{:else}
@@ -232,8 +229,8 @@
 
 				<p class="text-muted-foreground text-xs">
 					{scan.busy
-						? 'You can browse your workspace while this scan runs. The bell at the top tells you when it is done.'
-						: 'Results are based on a sample of public reviews. Collection time varies by marketplace.'}
+						? 'You can browse your workspace while this scan runs. The top of the page shows how it is going.'
+						: `Results are based on a sample of public reviews. A check usually takes ${typicalScanTime('lazada')}.`}
 				</p>
 			</form>
 		</CardContent>
@@ -249,11 +246,19 @@
 				</p>
 				<h3 class="text-foreground font-medium">Already checked this product?</h3>
 				<p>Open its report straight away, or check it again for new reviews.</p>
-				<a class="tap text-primary inline-flex items-center gap-1 font-medium underline underline-offset-4" href="/app/history">Find a saved report <ArrowRightIcon class="size-4" /></a>
-				<p class="text-xs">
-					Some marketplaces may ask you to log in or complete a CAPTCHA during collection. If that happens, a Chrome
-					window opens for it and this page tells you.
-				</p>
+				<a class="tap text-primary inline-flex items-center gap-1 font-medium underline underline-offset-4" href="/app/products">Search Products <ArrowRightIcon class="size-4" /></a>
+			</CardContent>
+		</Card>
+		<Card>
+			<CardHeader>
+				<CardTitle class="flex items-center gap-2"><PuzzleIcon class="size-5" aria-hidden="true" /> Check right on Lazada</CardTitle>
+				<CardDescription>
+					Shopping on a computer? With the DeFaketive extension, a Check with DeFaketive button appears on Lazada PH
+					product pages. No copying links.
+				</CardDescription>
+			</CardHeader>
+			<CardContent>
+				<Button variant="outline" href="/app/extension">Get the extension <ArrowRightIcon /></Button>
 			</CardContent>
 		</Card>
 	</aside>

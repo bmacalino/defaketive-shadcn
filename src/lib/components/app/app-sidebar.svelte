@@ -10,6 +10,7 @@
 	import LogInIcon from '@lucide/svelte/icons/log-in';
 	import LogOutIcon from '@lucide/svelte/icons/log-out';
 	import PackageSearchIcon from '@lucide/svelte/icons/package-search';
+	import PuzzleIcon from '@lucide/svelte/icons/puzzle';
 	import ScanSearchIcon from '@lucide/svelte/icons/scan-search';
 	import SettingsIcon from '@lucide/svelte/icons/settings';
 	import type { Component } from 'svelte';
@@ -40,6 +41,7 @@
 		{ href: '/app/wishlist', label: 'Wishlist', icon: HeartIcon }
 	];
 	const learn: Item[] = [
+		{ href: '/app/extension', label: 'Get the extension', icon: PuzzleIcon },
 		{ href: '/app/about', label: 'About', icon: InfoIcon },
 		{ href: '/app/faq', label: 'FAQ', icon: CircleHelpIcon }
 	];

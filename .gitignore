@@ -42,3 +42,8 @@ __pycache__/
 /backend/cookies_*.dat
 /backend/*_ph_*.json
 /backend/.browser_profiles/
+
+# The browser extension, built for one site (scripts/build-extension.mjs)
+/dist-extension
+/dist-extension.zip
+/static/downloads

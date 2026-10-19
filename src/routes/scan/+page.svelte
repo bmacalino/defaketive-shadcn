@@ -27,7 +27,7 @@
 	import { auth } from '#lib/stores/auth.svelte.js';
 	import { catalog } from '#lib/stores/catalog.svelte.js';
 	import { library } from '#lib/stores/library.svelte.js';
-	import { scan } from '#lib/stores/scan.svelte.js';
+	import { needsYouTitle, scan } from '#lib/stores/scan.svelte.js';
 	import { ui } from '#lib/stores/ui.svelte.js';
 	import type { Marketplace } from '#lib/types.js';
 
@@ -191,7 +191,7 @@
 					{#if scan.summary?.needs_you}
 						<Alert class="tone-caution border-(--tone)/50 bg-(--tone-soft) *:[svg]:text-(--tone)">
 							<CircleAlertIcon />
-							<AlertTitle>This scan needs you</AlertTitle>
+							<AlertTitle>{needsYouTitle(scan.summary)}</AlertTitle>
 							<AlertDescription>{scan.summary.message}</AlertDescription>
 						</Alert>
 					{:else}

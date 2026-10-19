@@ -53,10 +53,10 @@ for (const [label, id, heading] of SECTIONS) {
 }
 
 // ---- Footer ----
-const footerHrefs = async () => {
+const footerHrefs = async (names = ['Check a product', 'How verdicts work', 'About the team']) => {
 	const footer = page.getByRole('navigation', { name: 'Footer' });
 	const out = {};
-	for (const name of ['Check a product', 'How verdicts work', 'About the team']) out[name] = await footer.getByRole('link', { name }).getAttribute('href');
+	for (const name of names) out[name] = await footer.getByRole('link', { name }).getAttribute('href');
 	return out;
 };
 for (const route of ['/', '/scan']) {
@@ -73,8 +73,11 @@ check((await landed('The minds behind a safer shopping experience')) && (await i
 await signUp(context, base);
 await page.goto(base + '/app/home', { waitUntil: 'networkidle' });
 await page.waitForTimeout(900);
-const a = await footerHrefs();
-check(a['Check a product'] === '/app/analyze' && a['How verdicts work'] === '/app/faq' && a['About the team'] === '/app/about', `footer inside the app still opens app pages (${Object.values(a).join(', ')})`);
+// Inside the app the footer is one slim line ("Check a product" is in the menu): its links still open app pages.
+const a = await footerHrefs(['How verdicts work', 'About the team']);
+check(a['How verdicts work'] === '/app/faq' && a['About the team'] === '/app/about', `footer inside the app still opens app pages (${Object.values(a).join(', ')})`);
+const slim = await page.locator('footer').evaluate((el) => ({ height: el.getBoundingClientRect().height, blurb: el.textContent.includes('capstone research project') }));
+check(slim.height < 120 && !slim.blurb, `footer inside the app is the slim one (${Math.round(slim.height)}px, blurb ${slim.blurb ? 'shown' : 'left out'})`);
 
 // ---- Phone: the page still fits ----
 await page.setViewportSize({ width: 390, height: 844 });

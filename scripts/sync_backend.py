@@ -43,6 +43,7 @@ RUNTIME = (
     "static/",
     "sentiment-analysis/defaketive_sentiment/",
     "sentiment-analysis/models/hazard_classifier_v6/",
+    "sentiment-analysis/models/extra_labels_v1/",
     "sentiment-analysis/models/reference_baselines_v1.json",
     "sentiment-analysis/models/sentiment_onnx/xlmr_firecs_v1/",
     "lazada-scraper/src/",

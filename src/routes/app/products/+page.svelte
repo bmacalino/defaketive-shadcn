@@ -1,8 +1,15 @@
 <script lang="ts">
+	import { replaceState } from '$app/navigation';
+	import { page } from '$app/state';
+	import { untrack } from 'svelte';
 	import EmptyState from '#lib/components/app/empty-state.svelte';
 	import ProductCardSkeleton from '#lib/components/app/product-card-skeleton.svelte';
 	import ProductGrid from '#lib/components/app/product-grid.svelte';
+	import SearchIcon from '@lucide/svelte/icons/search';
 	import SlidersHorizontalIcon from '@lucide/svelte/icons/sliders-horizontal';
+	import XIcon from '@lucide/svelte/icons/x';
+	import { InputGroup, InputGroupAddon, InputGroupButton, InputGroupInput } from '#lib/components/ui/input-group/index.js';
+	import type { Product } from '#lib/types.js';
 	import { Badge } from '#lib/components/ui/badge/index.js';
 	import { Sheet, SheetContent, SheetDescription, SheetFooter, SheetHeader, SheetTitle } from '#lib/components/ui/sheet/index.js';
 	import { Button } from '#lib/components/ui/button/index.js';
@@ -14,6 +21,27 @@
 	let platform = $state('all');
 	let concern = $state<ConcernFilter>('all');
 	let sort = $state<'fewest' | 'most' | 'reviews'>('fewest');
+	// Search by name, as you type. Check a product sends a typed name here (?q=), and the address keeps the
+	// search so that Back from a report finds it again.
+	let search = $state(page.url.searchParams.get('q') ?? '');
+	const terms = $derived(search.toLowerCase().match(/[\p{L}\p{N}]+/gu) ?? []);
+	const named = (product: Product) => {
+		const name = String(product.name ?? '').toLowerCase();
+		return terms.every((term) => name.includes(term));
+	};
+	// Runs only when the search changes. It compares with the browser's own address: a shallow replaceState leaves
+	// page.url as it was, so comparing with page.url (or reading page.state here) kept this running for ever and
+	// froze the page.
+	$effect(() => {
+		const wanted = search.trim();
+		untrack(() => {
+			const url = new URL(location.href);
+			if ((url.searchParams.get('q') ?? '') === wanted) return;
+			if (wanted) url.searchParams.set('q', wanted);
+			else url.searchParams.delete('q');
+			replaceState(url, page.state);
+		});
+	});
 
 	// The marketplaces the saved reports come from. New checks are Lazada PH only, but reports saved earlier from
 	// another marketplace stay in the list, and can be picked out here.
@@ -41,12 +69,12 @@
 	const source = $derived(searching ? catalog.results : catalog.browse);
 	const filtered = $derived(
 		source
-			.filter((p) => (platform === 'all' || platformName(p) === platform) && matchesConcern(p, concern))
+			.filter((p) => (platform === 'all' || platformName(p) === platform) && matchesConcern(p, concern) && named(p))
 			.sort((a, b) =>
 				sort === 'reviews' ? reviewCount(b) - reviewCount(a) : sort === 'most' ? byConcern(a, b) : byConcern(b, a)
 			)
 	);
-	const filtering = $derived(platform !== 'all' || concern !== 'all');
+	const filtering = $derived(platform !== 'all' || concern !== 'all' || terms.length > 0);
 	const activeFilters = $derived((platform !== 'all' ? 1 : 0) + (concern !== 'all' ? 1 : 0) + (sort !== 'fewest' ? 1 : 0));
 	let filtersOpen = $state(false);
 	const label = (list: string[][] | [string, string][], value: string) => list.find(([v]) => v === value)?.[1] ?? '';
@@ -54,6 +82,7 @@
 	function clearFilters() {
 		platform = 'all';
 		concern = 'all';
+		search = '';
 	}
 </script>
 
@@ -96,6 +125,19 @@
 	</div>
 {/snippet}
 
+<div class="grid max-w-xl gap-1.5">
+	<Label for="product-search">Search by name</Label>
+	<InputGroup class="h-11">
+		<InputGroupAddon><SearchIcon /></InputGroupAddon>
+		<InputGroupInput id="product-search" enterkeyhint="search" placeholder="For example: power bank, earbuds, charger" autocomplete="off" bind:value={search} />
+		{#if search}
+			<InputGroupAddon align="inline-end">
+				<InputGroupButton size="icon-xs" aria-label="Clear the search" onclick={() => (search = '')}><XIcon /></InputGroupButton>
+			</InputGroupAddon>
+		{/if}
+	</InputGroup>
+</div>
+
 <!-- Wide screens: the filters sit in a row. Phones: one Filters button opens them from the bottom. -->
 <div class="hidden flex-wrap items-end gap-4 sm:flex" aria-label="Filter products" role="group">
 	{@render filterControls('')}
@@ -130,7 +172,7 @@
 
 <p class="text-muted-foreground text-sm" aria-live="polite">
 	{#if filtered.length}
-		{filtered.length} product{filtered.length === 1 ? '' : 's'} shown{searching ? ' for your search' : ''}.
+		{filtered.length} product{filtered.length === 1 ? '' : 's'} shown{searching || terms.length ? ' for your search' : ''}.
 	{/if}
 </p>
 

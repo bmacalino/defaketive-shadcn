@@ -13,6 +13,9 @@ another person scanned) cannot be opened. The routes below add that, reading the
                                      whole database (same shape as /api/products/detail)
     GET /api/saved/popular           products saved by two or more accounts, with how many saved them
 
+It also puts in place what protects the app once the public can reach it (protections.py), and the route the
+browser extension sends collected reviews to (extension_api.py, POST /api/extension/check).
+
 Who sees what: these routes serve the SHARED pool (the products table), which is what recommendations are picked
 from. A person's own history and wishlist stay in their account (user_activity, user_wishlist) and are only ever
 served to them, by the original app's /api/me/* routes.
@@ -58,6 +61,8 @@ from dashboard_utils import analysis_is_current, merge_product_catalogs, rank_re
 from data_store import DEFAULT_DB  # noqa: E402
 from flask import Blueprint, jsonify, request  # noqa: E402
 
+import extension_api  # noqa: E402  (beside this file)
+import protections  # noqa: E402  (beside this file)
 from saved_pool import SavedPool  # noqa: E402  (beside this file)
 
 # These helpers are private to the original module. Fail with a clear message if they ever change.
@@ -175,6 +180,26 @@ def saved_popular():
 
 
 webapp.app.register_blueprint(saved)
+
+# What keeps the app safe once people outside the team can reach it: closed old routes, daily limits, one Chrome
+# at a time, no copy of a scan per visitor, no reviewer names in what is sent (protections.py says why).
+scan_queue = protections.install(webapp, accounts)
+
+# Reviews the DeFaketive browser extension collected in a shopper's own browser: checked, then analysed like a
+# scan's (extension_api.py).
+analysis_queue = extension_api.install(webapp)
+
+
+def _saved_report(link: str) -> dict[str, str] | None:
+    """When this listing's saved report was last written (its row's updated_at), for extension_api's recent-report rule."""
+    wanted = _identity(link)
+    for saved_link, updated_at in pool.snapshot()[1].items():
+        if _identity(saved_link) == wanted and updated_at:
+            return {"link": saved_link, "checked_at": updated_at}
+    return None
+
+
+extension_api.saved_report = _saved_report
 
 if __name__ == "__main__":
     # Flask's debug mode shows a developer's error page in the browser. That is for changing the code (dev.cmd

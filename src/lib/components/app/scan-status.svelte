@@ -10,7 +10,7 @@
 	import { Spinner } from '#lib/components/ui/spinner/index.js';
 	import { MARKETPLACES } from '#lib/product.js';
 	import { catalog } from '#lib/stores/catalog.svelte.js';
-	import { scan } from '#lib/stores/scan.svelte.js';
+	import { needsYouTitle, scan } from '#lib/stores/scan.svelte.js';
 	import type { Marketplace } from '#lib/types.js';
 
 	// The latest scan, on Home. It stays after a scan finishes so a shopper who wandered off can find the report.
@@ -35,7 +35,7 @@
 				: attention
 					? 'Scan progress needs checking'
 					: needsYou
-						? 'This scan needs you'
+						? needsYouTitle(summary)
 						: ['Collecting product reviews', 'Reading the reviews', 'Preparing your report'][stage - 1]
 	);
 	const product = $derived(summary?.productLink ? catalog.lookup(summary.productLink) : undefined);

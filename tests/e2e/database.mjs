@@ -84,11 +84,13 @@ const open = async (opts = {}) => {
 
 	await page.goto(base + '/app/analyze', { waitUntil: 'networkidle' });
 	await page.waitForTimeout(1000);
+	// A name on Check a product: Enter takes it to the search on Products.
 	await page.locator('#search-query').fill('MOFOX helmet');
-	await page.getByRole('button', { name: 'Search saved reports' }).click();
-	await page.waitForURL(/\/app\/products/);
+	await page.locator('#search-query').press('Enter');
+	await page.waitForURL(/\/app\/products\?q=MOFOX/);
 	await page.waitForTimeout(600);
 	check(await page.getByText(/products? shown for your search/).isVisible(), 'a name search finds products from the database');
+	check(await page.getByRole('link', { name: new RegExp(helmet.name.slice(0, 20).replace(/[.*+?^${}()|[\]\\]/g, '\\$&')) }).first().isVisible(), 'and lists the helmet');
 
 	if (temu.length >= 2) {
 		await page.goto(base + '/app/analyze', { waitUntil: 'networkidle' });

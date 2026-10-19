@@ -160,6 +160,8 @@ export interface Job {
 	message: string;
 	/** A Chrome window has opened for a login or a check, and `message` says what to do in it. */
 	needs_you?: boolean;
+	/** On the public site: the window is on the team's scanning computer, so a team member has to act, not the visitor. */
+	needs_team?: boolean;
 	platform: string;
 	query: string;
 	created_at: string;

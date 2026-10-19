@@ -53,12 +53,13 @@ check(await page.getByText('Test Shopper').first().isVisible(), 'sidebar shows t
 // --- Analyze page -------------------------------------------------------------------
 await page.goto(base + '/app/analyze', { waitUntil: 'networkidle' });
 await page.waitForTimeout(800);
-const primary = page.getByRole('button', { name: /^Check$/ });
+const primary = page.getByRole('button', { name: /^Check this product/ });
 check(await primary.isDisabled(), 'empty Analyze page: main button is disabled');
 
 await page.locator('#search-query').fill('https://example.com/not-a-shop');
 check(await page.getByText('This website is not supported').isVisible(), 'unsupported link shows an error');
-check(await page.getByRole('button', { name: /Search saved reports|^Check$/ }).first().isDisabled(), 'unsupported link: button disabled');
+check(await primary.isDisabled(), 'unsupported link: button disabled');
+check((await page.getByRole('button').filter({ hasText: /Search saved reports|Collect fresh reviews/ }).count()) === 0, 'one main button: no "Search saved reports" or "Collect fresh reviews"');
 
 await page.locator('#search-query').fill(LINK);
 await page.waitForTimeout(400);
@@ -84,16 +85,21 @@ await page.waitForTimeout(600);
 check(await page.getByText('1 product saved').isVisible(), 'wishlist shows "1 product saved"');
 await page.screenshot({ path: `${out}/flow_wishlist.png`, fullPage: true });
 
-// --- Name search ---------------------------------------------------------------------
+// --- Name search: Check a product takes links; a name points to the search on Products ----------
 await page.goto(base + '/app/analyze', { waitUntil: 'networkidle' });
 await page.locator('#search-query').fill('cable');
-check(await page.getByText(/Fresh collection settings: Lazada PH/).isVisible(), 'a plain name is checked on Lazada PH');
+check(await primary.isDisabled(), 'a plain name does not start a check');
 check(!(await page.getByText('Choose a marketplace').isVisible()), 'there is no marketplace to choose (Lazada PH only)');
-await page.getByRole('button', { name: 'Search saved reports' }).click();
-await page.waitForURL(/\/app\/products/);
+const toProducts = page.getByRole('link', { name: /Search Products for “cable”/ });
+check(await toProducts.isVisible(), 'a plain name offers "Search Products for “cable”"');
+await toProducts.click();
+await page.waitForURL(/\/app\/products\?q=cable/);
 await page.waitForTimeout(500);
+check((await page.locator('#product-search').inputValue()) === 'cable', 'Products opens with the name in its search box');
 check(await page.getByText(/product.? shown for your search/).isVisible(), 'name search lists matches on Products');
-await page.getByRole('button', { name: 'Show all products' }).click();
+await page.getByRole('button', { name: 'Clear the search' }).click();
+await page.waitForTimeout(300);
+check(!(await page.getByText(/shown for your search/).isVisible()) && !new URL(page.url()).searchParams.has('q'), 'clearing the search shows everything again');
 
 // --- Settings ----------------------------------------------------------------------
 await page.goto(base + '/app/settings', { waitUntil: 'networkidle' });

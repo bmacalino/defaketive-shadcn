@@ -22,6 +22,7 @@ export function guestDestination(url: {
 	if (section === 'analyze') return { href: query ? `/scan?q=${encodeURIComponent(query)}` : '/scan', signIn: false };
 	if (section === 'about') return { href: '/#about', signIn: false };
 	if (section === 'faq') return { href: '/#faq', signIn: false };
+	if (section === 'extension') return { href: '/extension', signIn: false };
 	return { href: '/', signIn: true };
 }
 

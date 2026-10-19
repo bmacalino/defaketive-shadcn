@@ -1,9 +1,9 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
-	import BellIcon from '@lucide/svelte/icons/bell';
 	import SearchIcon from '@lucide/svelte/icons/search';
 	import AppSidebar from '#lib/components/app/app-sidebar.svelte';
+	import ScanPill from '#lib/components/app/scan-pill.svelte';
 	import ThemeToggle from '#lib/components/app/theme-toggle.svelte';
 	import SiteFooter from '#lib/components/app/site-footer.svelte';
 	import {
@@ -21,7 +21,6 @@
 	import { Spinner } from '#lib/components/ui/spinner/index.js';
 	import { guestDestination } from '#lib/nav.js';
 	import { auth } from '#lib/stores/auth.svelte.js';
-	import { scan } from '#lib/stores/scan.svelte.js';
 	import { ui } from '#lib/stores/ui.svelte.js';
 	import type { LayoutProps } from './$types';
 
@@ -50,22 +49,12 @@
 		wishlist: 'Wishlist',
 		settings: 'Settings',
 		about: 'About',
-		faq: 'FAQ'
+		faq: 'FAQ',
+		extension: 'Get the extension'
 	};
 	const current = $derived(titles[page.url.pathname.split('/')[2] ?? ''] ?? 'DeFaketive');
 
 	const mac = typeof navigator !== 'undefined' && /mac|iphone|ipad/i.test(navigator.platform || navigator.userAgent);
-
-	// The bell stands for the background scan: a dot while one runs or has finished.
-	const bell = $derived(
-		scan.busy
-			? 'A scan is running. Open it'
-			: scan.summary?.state === 'complete'
-				? 'Your report is ready. Open it'
-				: scan.summary
-					? 'Your last scan needs a look. Open it'
-					: 'No scans running'
-	);
 </script>
 
 {#if !auth.user}
@@ -98,12 +87,7 @@
 					<SearchIcon /> Search… <Kbd class="ml-auto">{mac ? '⌘' : 'Ctrl'} K</Kbd>
 				</Button>
 				<Button variant="ghost" size="icon" class="md:hidden" aria-label="Search pages and products" onclick={() => (ui.commandOpen = true)}><SearchIcon /></Button>
-				<Button variant="ghost" size="icon" class="relative" aria-label={bell} title={bell} disabled={!scan.summary} onclick={() => scan.open()}>
-					<BellIcon />
-					{#if scan.busy || scan.summary}
-						<span class="bg-primary ring-background absolute top-2 right-2 size-2 rounded-full ring-2" aria-hidden="true"></span>
-					{/if}
-				</Button>
+				<ScanPill />
 				<ThemeToggle />
 			</div>
 		</header>
@@ -112,7 +96,7 @@
 				{@render children()}
 			</div>
 		</div>
-		<SiteFooter />
+		<SiteFooter compact />
 	</Sidebar.Inset>
 </Sidebar.Provider>
 {/if}

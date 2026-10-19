@@ -253,12 +253,12 @@ async function reportFacts(page) {
 		}
 		check(hits.length === 0, `${label}: none of the old words are left${hits.length ? ' -> ' + hits.join('; ') : ''}`);
 	};
-	await sweep('signed-in screens', ['/', '/app/home', '/app/analyze', '/app/products', '/app/history', '/app/wishlist', '/app/settings', '/app/about', '/app/faq', `/app/report?link=${encodeURIComponent(fake[1].link)}`]);
+	await sweep('signed-in screens', ['/', '/app/home', '/app/analyze', '/app/products', '/app/history', '/app/wishlist', '/app/settings', '/app/about', '/app/faq', '/app/extension', `/app/report?link=${encodeURIComponent(fake[1].link)}`]);
 
 	await page.goto(base + '/app/analyze', { waitUntil: 'networkidle' });
 	await settle(page, 800);
 	check(await page.getByRole('heading', { level: 1, name: 'Check a product' }).isVisible(), 'the page is called "Check a product"');
-	check(await page.getByRole('button', { name: 'Check', exact: true }).isVisible(), 'its main button says "Check"');
+	check(await page.getByRole('button', { name: 'Check this product', exact: true }).isVisible(), 'its main button says "Check this product"');
 	check(await page.getByRole('link', { name: 'Check a product' }).first().isVisible(), 'the side menu says "Check a product"');
 	await page.locator('#search-query').fill('https://www.lazada.com.ph/products/brand-new-thing-i123456789.html');
 	check(await page.getByRole('button', { name: 'Check this Lazada PH product' }).isVisible(), 'a new link offers "Check this Lazada PH product"');
@@ -288,7 +288,7 @@ async function reportFacts(page) {
 	await axe(page, 'landing');
 	const BANNED = [[/\banalyze\b/i, '"Analyze"'], [/scan a product/i, '"Scan a product"'], [/no warning signs(?! found)/i, '"No warning signs"'], [/spot fakes/i, '"Spot fakes"'], [/a safer you/i, '"A safer you"'], [/Safety report(?!s)/, '"Safety report"']];
 	const hits = [];
-	for (const route of ['/', '/scan', `/scan/report?link=${encodeURIComponent(fake[1].link)}`]) {
+	for (const route of ['/', '/scan', '/extension', `/scan/report?link=${encodeURIComponent(fake[1].link)}`]) {
 		await page.goto(base + route, { waitUntil: 'networkidle' });
 		await settle(page, 1200);
 		const text = await page.evaluate(() => document.body.innerText + ' ' + [...document.querySelectorAll('[aria-label],[title],[placeholder]')].map((el) => `${el.getAttribute('aria-label') ?? ''} ${el.getAttribute('title') ?? ''}`).join(' '));
