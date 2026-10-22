@@ -52,20 +52,13 @@ const open = async (opts = {}) => {
 	await context.close();
 }
 
-// 3. Wishlist suggestions come from the database, and now open.
+// 3. The Wishlist is only the person's own saved products: no suggestions and no "most saved" lists.
 {
 	const { context, page } = await open();
 	await page.goto(base + '/app/wishlist', { waitUntil: 'networkidle' });
 	await page.waitForTimeout(1200);
-	const pick = page.locator('section[aria-labelledby="picks-title"] a').first();
-	if (await pick.count()) {
-		await pick.click();
-		await page.waitForURL(/\/app\/report\?link=/);
-		await page.getByRole('heading', { level: 1 }).waitFor({ timeout: 15000 });
-		check(!(await page.getByText("We don't have a report for this product yet").isVisible()), 'a "no warning signs" suggestion opens its report');
-	} else {
-		check(true, '(no suggestions to open right now)');
-	}
+	const text = await page.evaluate(() => document.body.innerText);
+	check(!text.includes('Products with no warnings') && !text.includes('Most saved by users') && (await page.locator('section[aria-labelledby="picks-title"], section[aria-labelledby="popular-title"]').count()) === 0, 'Wishlist: only your own saved items, no suggestion lists');
 	await context.close();
 }
 
@@ -119,7 +112,7 @@ const open = async (opts = {}) => {
 	await page.waitForTimeout(400);
 	await page.keyboard.press('Enter');
 	await page.waitForURL(/\/app\/report\?link=/);
-	check(decodeURIComponent(page.url()).includes(helmet.link), 'Ctrl+K finds a database product and opens it');
+	check(decodeURIComponent(page.url()).includes(helmet.link), `Ctrl+K finds a database product and opens it (${decodeURIComponent(page.url()).slice(-70)} vs ${helmet.link.slice(-50)})`);
 	await context.close();
 }
 

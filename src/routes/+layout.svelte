@@ -9,7 +9,9 @@
 	import AuthDialog from '#lib/components/app/auth-dialog.svelte';
 	import OfflineBanner from '#lib/components/app/offline-banner.svelte';
 	import TermsDialog from '#lib/components/app/terms-dialog.svelte';
+	import WelcomeTour from '#lib/components/app/welcome-tour.svelte';
 	import { Toaster } from '#lib/components/ui/sonner/index.js';
+	import { agency } from '#lib/stores/agency.svelte.js';
 	import { auth } from '#lib/stores/auth.svelte.js';
 	import { library } from '#lib/stores/library.svelte.js';
 	import { prefs } from '#lib/stores/prefs.svelte.js';
@@ -42,7 +44,7 @@
 			return;
 		}
 		if (event.key !== '/' || event.ctrlKey || event.metaKey || event.altKey || event.defaultPrevented) return;
-		if (typing(event.target) || ui.commandOpen || ui.authOpen || ui.termsOpen) return;
+		if (typing(event.target) || ui.commandOpen || ui.authOpen || ui.termsOpen || ui.tourOpen || agency.guideOpen) return;
 		event.preventDefault();
 		const bar = document.querySelector<HTMLInputElement>('[data-scan-input]');
 		if (bar) {
@@ -80,3 +82,4 @@
 <AuthDialog />
 <TermsDialog />
 <CommandPalette />
+{#if auth.user}<WelcomeTour />{/if}

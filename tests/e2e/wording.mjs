@@ -1,5 +1,5 @@
 // The four "fix first" items: red only for serious safety reports, one word for the action ("Check"),
-// one name per verdict group, and an honest landing headline. Uses a made-up catalog in the browser only.
+// one name per result group, and an honest landing headline. Uses a made-up catalog in the browser only.
 import { chromium } from 'playwright-core';
 import fs from 'node:fs';
 import { signUp } from './_signin.mjs';
@@ -48,7 +48,7 @@ const fake = [
 	mk(8, 'India old', 'not_analyzed')
 ];
 const EXPECT = { 'Alpha serious': 'safety', 'Bravo mild': 'caution', 'Charlie fakes': 'caution', 'Delta clean': 'clear', 'Echo lifted': 'caution', 'Foxtrot few': 'caution', 'Golf few': 'unknown', 'Hotel unreliable': 'unknown', 'India old': 'unknown' };
-const NAMES = { safety: 'Safety reports', caution: 'Caution', clear: 'No warnings', unknown: 'No verdict yet' };
+const NAMES = { safety: 'Safety reports', caution: 'Caution', clear: 'No warnings', unknown: 'No result yet' };
 const detailFor = (p) => ({
 	product: {
 		...p, category: 'Power banks', sentiment_summary: { sentiment_counts: { positive: 20, uncertain: 8, negative: 12 }, coverage: { reviews_listed: 40 } },
@@ -96,10 +96,10 @@ async function axe(page, label) {
 }
 // What a report page shows about its group.
 async function reportFacts(page) {
-	await page.getByRole('group', { name: 'Verdict' }).waitFor({ timeout: 15000 });
+	await page.getByRole('group', { name: 'Result' }).waitFor({ timeout: 15000 });
 	await settle(page, 1500);
 	return page.evaluate(() => {
-		const box = document.querySelector('[aria-label="Verdict"]');
+		const box = document.querySelector('[aria-label="Result"]');
 		const tagged = [...document.querySelectorAll('p')].filter((p) => p.querySelector('[data-slot="badge"]')?.textContent.trim() === 'This product').map((p) => p.textContent.replace('This product', '').trim());
 		const safetyBar = [...document.querySelectorAll('[data-slot="progress"]')].find((el) => /bg-(destructive|warning)/.test(el.className));
 		return {
@@ -142,9 +142,9 @@ async function reportFacts(page) {
 	// Products: the filter uses the same four names.
 	await page.locator('#filter-risk').click();
 	const options = (await page.getByRole('option').allInnerTexts()).map((t) => t.trim());
-	check(options.join(' | ') === 'All products | Caution or safety reports | Safety reports | Caution | No warnings | No verdict yet', `Products filter names: ${options.join(' | ')}`);
+	check(options.join(' | ') === 'All products | Caution or safety reports | Safety reports | Caution | No warnings | No result yet', `Products filter names: ${options.join(' | ')}`);
 	await page.keyboard.press('Escape');
-	for (const [option, count] of [['Safety reports', 1], ['Caution', 4], ['No warnings', 1], ['No verdict yet', 3], ['Caution or safety reports', 5], ['All products', 9]]) {
+	for (const [option, count] of [['Safety reports', 1], ['Caution', 4], ['No warnings', 1], ['No result yet', 3], ['Caution or safety reports', 5], ['All products', 9]]) {
 		await page.locator('#filter-risk').click();
 		await page.getByRole('option', { name: option, exact: true }).click();
 		await page.waitForTimeout(400);
@@ -155,21 +155,21 @@ async function reportFacts(page) {
 	await page.goto(base + '/app/history', { waitUntil: 'networkidle' });
 	await settle(page, 1500);
 	const toggles = (await page.getByRole('group', { name: 'Filter scans' }).getByRole('radio').allInnerTexts()).map((t) => t.trim());
-	check(toggles.join(' | ') === 'All | No warnings | Caution | Safety reports | No verdict yet', `History filter names: ${toggles.join(' | ')}`);
+	check(toggles.join(' | ') === 'All | No warnings | Caution | Safety reports | No result yet', `History filter names: ${toggles.join(' | ')}`);
 	const stats = await page.evaluate(() => Object.fromEntries([...document.querySelectorAll('dl[aria-label="Your scan history in numbers"] > *')].map((el) => [el.querySelector('dt').textContent.trim(), el.querySelector('dd').textContent.trim()])));
 	check(stats['No warnings'] === '1' && stats['Caution'] === '4' && stats['Safety reports'] === '1', `History numbers: ${JSON.stringify(stats)}`);
 	await page.getByRole('radio', { name: 'Safety reports' }).click();
 	await page.waitForTimeout(400);
 	check(await page.getByText('1 result', { exact: true }).isVisible(), 'History "Safety reports" lists only the serious product');
-	await page.getByRole('radio', { name: 'No verdict yet' }).click();
+	await page.getByRole('radio', { name: 'No result yet' }).click();
 	await page.waitForTimeout(400);
-	check(await page.getByText('3 results', { exact: true }).isVisible(), 'History "No verdict yet" lists the three without a verdict');
+	check(await page.getByText('3 results', { exact: true }).isVisible(), 'History "No result yet" lists the three without a result');
 
 	// Home: the overview, the alert and the rows.
 	await page.goto(base + '/app/home', { waitUntil: 'networkidle' });
 	await settle(page, 1800);
 	const overview = await page.locator('[aria-label="Overview of your checked products"]').innerText();
-	check(/No warnings · 1 product/.test(overview) && /Caution · 4 products/.test(overview) && /Safety reports · 1 product/.test(overview) && /No verdict yet · 3 products/.test(overview), 'Home overview uses the four group names with the right counts');
+	check(/No warnings · 1 product/.test(overview) && /Caution · 4 products/.test(overview) && /Safety reports · 1 product/.test(overview) && /No result yet · 3 products/.test(overview), 'Home overview uses the four group names with the right counts');
 	const look = page.locator('[aria-labelledby="attention-title"]');
 	const lookNames = await look.locator('article a[title]').evaluateAll((els) => els.map((el) => el.getAttribute('title')));
 	check(lookNames.length === 5 && lookNames[0].startsWith('Alpha serious'), `Home "Needs a look" lists the 5 products with warnings, the serious one first (${lookNames[0]})`);
@@ -182,20 +182,15 @@ async function reportFacts(page) {
 	// Reports.
 	await page.goto(reportUrl(1), { waitUntil: 'networkidle' });
 	let facts = await reportFacts(page);
-	check(toneOf(facts.boxClass) === 'caution' && /^\s*Caution/.test(facts.boxText), 'mild safety mention: the verdict box is orange and says Caution');
+	check(toneOf(facts.boxClass) === 'caution' && /^\s*Caution/.test(facts.boxText), 'mild safety mention: the result box is orange and says Caution');
 	check(facts.tagged.length === 1 && facts.tagged[0] === 'Caution', `mild safety mention: the legend tags Caution as "This product" (${facts.tagged.join(', ')})`);
 	check(facts.lifted === '', 'mild safety mention (the checker\'s own caution level): no extra note');
 	check(facts.safetyBar === 'orange', 'mild safety mention: the safety bar is orange');
 	check(facts.marks.length > 0 && facts.marks.every((c) => c.includes('bg-warning') && !c.includes('destructive')), 'highlighted words are amber, not red');
 	await page.screenshot({ path: 'tests/e2e/shots/wording_report_mild.png', fullPage: true });
 	await axe(page, 'report with a mild safety mention');
-	await page.getByRole('button', { name: 'View full detail' }).click();
-	await page.waitForTimeout(500);
-	const table = await page.evaluate(() => [...document.querySelectorAll('[data-slot="table"] tbody tr')].map((tr) => [...tr.children].map((td) => td.textContent.replace('This product', '').trim())));
-	const shownAs = Object.fromEntries(table.map((row) => [row[0], row[1]]));
-	check(shownAs['Reviewers report safety problems'] === 'Safety reports' && shownAs['Some reviewers mention safety concerns'] === 'Caution' && shownAs['Reviewers report fakes or defects'] === 'Caution' && shownAs['No warning signs found'] === 'No warnings' && shownAs['Not enough reviews to judge'] === 'No verdict yet' && shownAs['These reviews may not be trustworthy'] === 'No verdict yet', 'the full-detail table says which group each verdict is shown as');
-	check(await page.getByText('A product with any safety mention is shown as Caution at least').isVisible(), 'the table explains that a safety mention lifts a product to Caution');
-	await axe(page, 'report with the full-detail table open');
+	// The labels card is short: four labels, no table. (The table lives on the FAQ page, checked below.)
+	check((await page.getByRole('button', { name: 'View full detail' }).count()) === 0 && (await page.locator('#report-guide [data-slot="table"]').count()) === 0, 'the labels card on a report has no full-detail table');
 	await page.getByRole('tab', { name: /Reviews/ }).click();
 	await page.waitForTimeout(700);
 	let tag = await page.evaluate(() => [...document.querySelectorAll('#report-evidence article [data-slot="badge"]')].find((b) => b.textContent.trim() === 'Safety problem')?.className ?? '');
@@ -210,7 +205,7 @@ async function reportFacts(page) {
 	check(toneOf(tag) === 'safety', 'serious reports: the review\'s "Safety problem" tag is red');
 	await page.screenshot({ path: 'tests/e2e/shots/wording_report_serious.png' });
 
-	for (const [i, why] of [[4, 'verdict is "No warning signs found"'], [5, 'too few reviews for a verdict']]) {
+	for (const [i, why] of [[4, 'result is "No warning signs found"'], [5, 'too few reviews for a result']]) {
 		await page.goto(reportUrl(i), { waitUntil: 'networkidle' });
 		facts = await reportFacts(page);
 		check(toneOf(facts.boxClass) === 'caution' && facts.tagged[0] === 'Caution' && /is shown as Caution because 1 review mentions a safety concern/.test(facts.lifted), `one safety mention while the ${why}: orange, with a note saying why`);
@@ -221,13 +216,13 @@ async function reportFacts(page) {
 		facts = await reportFacts(page);
 		check(toneOf(facts.boxClass) === kind && facts.tagged[0] === NAMES[kind] && facts.lifted === '', `report "${fake[i].name.replace(' power bank', '')}": ${NAMES[kind]}, tagged in the legend`);
 	}
-	await axe(page, 'report with no verdict yet');
+	await axe(page, 'report with no result yet');
 
 	// FAQ: the same table.
 	await page.goto(base + '/app/faq', { waitUntil: 'networkidle' });
 	await settle(page, 800);
 	const faq = await page.evaluate(() => [...document.querySelectorAll('[data-slot="table"] tbody tr')].map((tr) => [...tr.children].map((td) => td.textContent.trim())));
-	check(faq.length === 6 && faq.every((row) => row.length === 3 && ['Safety reports', 'Caution', 'No warnings', 'No verdict yet'].includes(row[1])), 'FAQ: every verdict lists the group it is shown as');
+	check(faq.length === 6 && faq.every((row) => row.length === 3 && ['Safety reports', 'Caution', 'No warnings', 'No result yet'].includes(row[1])), 'FAQ: every result lists the group it is shown as');
 	await axe(page, 'FAQ');
 	await page.screenshot({ path: 'tests/e2e/shots/wording_faq.png', fullPage: true });
 
@@ -320,9 +315,6 @@ async function reportFacts(page) {
 		const wide = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
 		check(wide <= 1, `phone: ${route.slice(0, 16)} does not scroll sideways`);
 	}
-	await page.getByRole('button', { name: 'View full detail' }).click();
-	await page.waitForTimeout(500);
-	check((await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth)) <= 1, 'phone: the full-detail table does not push the page sideways');
 	await page.screenshot({ path: 'tests/e2e/shots/wording_phone_report.png', fullPage: true });
 	await context.close();
 }

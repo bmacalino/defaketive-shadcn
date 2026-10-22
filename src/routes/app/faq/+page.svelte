@@ -10,7 +10,7 @@
 
 <header class="space-y-1">
 	<h1 class="text-3xl font-semibold tracking-tight">FAQ &amp; support</h1>
-	<p class="text-muted-foreground">Common questions, and how to read a verdict.</p>
+	<p class="text-muted-foreground">Common questions, and how to read a result.</p>
 </header>
 
 <Card>
@@ -20,16 +20,16 @@
 
 <Card>
 	<CardHeader>
-		<CardTitle>How verdicts work</CardTitle>
+		<CardTitle>How results work</CardTitle>
 		<CardDescription>
-			Each product gets a plain verdict from what its reviewers reported. There is no score, and no verdict means a
+			Each product gets a plain result from what its reviewers reported. There is no score, and no result says a
 			product is safe or unsafe.
 		</CardDescription>
 	</CardHeader>
 	<CardContent>
 		<Table>
 			<TableHeader>
-				<TableRow><TableHead>Verdict</TableHead><TableHead>Shown as</TableHead><TableHead>What it means</TableHead></TableRow>
+				<TableRow><TableHead>Result</TableHead><TableHead>Shown as</TableHead><TableHead>What it means</TableHead></TableRow>
 			</TableHeader>
 			<TableBody>
 				{#each VERDICT_GUIDE as row (row.state)}

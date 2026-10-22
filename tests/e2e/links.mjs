@@ -53,7 +53,7 @@ for (const [label, id, heading] of SECTIONS) {
 }
 
 // ---- Footer ----
-const footerHrefs = async (names = ['Check a product', 'How verdicts work', 'About the team']) => {
+const footerHrefs = async (names = ['Check a product', 'How results work', 'About the team']) => {
 	const footer = page.getByRole('navigation', { name: 'Footer' });
 	const out = {};
 	for (const name of names) out[name] = await footer.getByRole('link', { name }).getAttribute('href');
@@ -63,7 +63,7 @@ for (const route of ['/', '/scan']) {
 	await page.goto(base + route, { waitUntil: 'networkidle' });
 	await page.waitForTimeout(700);
 	const h = await footerHrefs();
-	check(h['Check a product'] === '/scan' && h['How verdicts work'] === '/#faq' && h['About the team'] === '/#about', `footer on ${route}: links stay on the public site (${Object.values(h).join(', ')})`);
+	check(h['Check a product'] === '/scan' && h['How results work'] === '/#faq' && h['About the team'] === '/#about', `footer on ${route}: links stay on the public site (${Object.values(h).join(', ')})`);
 }
 await page.goto(base + '/scan', { waitUntil: 'networkidle' });
 await page.getByRole('navigation', { name: 'Footer' }).getByRole('link', { name: 'About the team' }).click();
@@ -74,8 +74,8 @@ await signUp(context, base);
 await page.goto(base + '/app/home', { waitUntil: 'networkidle' });
 await page.waitForTimeout(900);
 // Inside the app the footer is one slim line ("Check a product" is in the menu): its links still open app pages.
-const a = await footerHrefs(['How verdicts work', 'About the team']);
-check(a['How verdicts work'] === '/app/faq' && a['About the team'] === '/app/about', `footer inside the app still opens app pages (${Object.values(a).join(', ')})`);
+const a = await footerHrefs(['How results work', 'About the team']);
+check(a['How results work'] === '/app/faq' && a['About the team'] === '/app/about', `footer inside the app still opens app pages (${Object.values(a).join(', ')})`);
 const slim = await page.locator('footer').evaluate((el) => ({ height: el.getBoundingClientRect().height, blurb: el.textContent.includes('capstone research project') }));
 check(slim.height < 120 && !slim.blurb, `footer inside the app is the slim one (${Math.round(slim.height)}px, blurb ${slim.blurb ? 'shown' : 'left out'})`);
 

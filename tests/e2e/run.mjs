@@ -27,7 +27,7 @@ const API = 'http://127.0.0.1:5000';
 const ALL = [
 	'links', 'flow', 'scan-flow', 'accounts', 'database', 'features', 'guest', 'lock', 'wording', 'errors',
 	'targets', 'report-flow', 'round10', 'brand', 'a11y', 'a11y-new', 'a11y-dialogs', 'gallery', 'extension', 'extension-browser',
-	'uiux'
+	'uiux', 'agency', 'tweaks'
 ];
 const args = process.argv.slice(2);
 const dev = args.includes('--dev');

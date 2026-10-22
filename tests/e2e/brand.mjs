@@ -1,5 +1,5 @@
 // The brand colour: it is on the logo, the main buttons and the links, in light and in dark,
-// and it is never on anything that counts reviews or shows a verdict. Read-only, as a guest.
+// and it is never on anything that counts reviews or shows a result. Read-only, as a guest.
 import { chromium } from 'playwright-core';
 import fs from 'node:fs';
 
@@ -13,7 +13,7 @@ const check = (ok, what) => {
 };
 
 const pool = await (await fetch(`${base}/api/saved/products`)).json();
-// A product with a verdict and something reported, so its report has bars and quotes to look at.
+// A product with a result and something reported, so its report has bars and quotes to look at.
 const counted = (p) => Object.values(p.badge_view?.counts ?? {}).reduce((sum, n) => sum + Number(n || 0), 0);
 const product = [...pool.products].filter((p) => p.badge_view?.available).sort((a, b) => counted(b) - counted(a))[0];
 console.log(`(testing with "${String(product.name).slice(0, 40)}…")`);
@@ -45,7 +45,7 @@ const paint = (page) =>
 			buttonText: css(button, 'color'),
 			bars: bars.map((el) => getComputedStyle(el).backgroundColor),
 			links: links.map((el) => getComputedStyle(el).color),
-			verdictBorder: css(document.querySelector('[aria-label="Verdict"]'), 'borderTopColor')
+			verdictBorder: css(document.querySelector('[aria-label="Result"]'), 'borderTopColor')
 		};
 	});
 async function axe(page, label) {
@@ -73,13 +73,13 @@ for (const scheme of ['light', 'dark']) {
 	await axe(page, `landing page, ${scheme}, with the brand colour`);
 	await page.screenshot({ path: `tests/e2e/shots/brand_landing_${scheme}.png` });
 
-	// ---- A report: the brand colour never counts reviews or shows a verdict ----
+	// ---- A report: the brand colour never counts reviews or shows a result ----
 	await page.goto(`${base}/scan/report?link=${encodeURIComponent(product.link)}`, { waitUntil: 'networkidle' });
-	await page.getByRole('group', { name: 'Verdict' }).waitFor({ timeout: 20000 });
+	await page.getByRole('group', { name: 'Result' }).waitFor({ timeout: 20000 });
 	await page.waitForTimeout(1500);
 	const report = await paint(page);
 	check(report.bars.length > 0 && report.bars.every((colour) => colour !== report.brand), `${scheme}: the bars that count reviews are not the brand colour (${report.bars.length} bars)`);
-	check(report.verdictBorder !== report.brand, `${scheme}: the verdict box is not the brand colour`);
+	check(report.verdictBorder !== report.brand, `${scheme}: the result box is not the brand colour`);
 	check(report.links.every((colour) => colour === report.brand), `${scheme}: "Read all" links are the brand colour (${report.links.length} on this report)`);
 	await axe(page, `report, ${scheme}, with the brand colour`);
 	await page.screenshot({ path: `tests/e2e/shots/brand_report_${scheme}.png` });

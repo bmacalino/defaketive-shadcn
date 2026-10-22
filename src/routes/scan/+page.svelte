@@ -77,7 +77,7 @@
 	const steps = [
 		['Paste a link', 'From a Lazada PH product page.'],
 		['We read the reviews', 'In English, Filipino and Taglish, looking for reports of fakes, defects and safety problems.'],
-		['Read the verdict', 'A plain verdict with the reviewers\' own words behind it. No score.']
+		['Read the result', 'A plain result with the reviewers\' own words behind it. No score.']
 	];
 	const perks = ['Unlimited scans', 'Your scan history, on any device', 'Save products to a wishlist', 'Search every product already checked'];
 </script>
@@ -94,7 +94,7 @@
 	</Badge>
 	<h1 class="text-3xl font-semibold tracking-tight text-balance md:text-4xl">Check a product before you buy</h1>
 	<p class="text-muted-foreground mx-auto max-w-xl">
-		Paste a product link. No account needed. You get a plain verdict and the reviews behind it.
+		Paste a product link. No account needed. You get a plain result and the reviews behind it.
 	</p>
 </header>
 

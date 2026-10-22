@@ -2,6 +2,7 @@
 // while everyone still gets the same shared pool of analyzed products (for browsing and recommendations).
 // The scan is pretended, so no marketplace is touched. Accounts go to the scratch accounts database.
 import { chromium } from 'playwright-core';
+import { closeTour } from './_signin.mjs';
 import fs from 'node:fs';
 
 const base = process.env.BASE || 'http://localhost:5173';
@@ -78,7 +79,7 @@ async function signUp(who) {
 	await dialog.getByLabel('Confirm password').fill(who.password);
 	await dialog.getByRole('checkbox').click();
 	await dialog.getByRole('button', { name: 'Create account' }).click();
-	await page.getByText(/Your account is ready/).first().waitFor({ timeout: 15000 });
+	await closeTour(page);
 	await settle();
 }
 async function signIn(who) {

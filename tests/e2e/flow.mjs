@@ -1,6 +1,7 @@
 // Walk the real flows against the real Flask app (its accounts go to a scratch database):
 // guest is kept out -> sign up -> analyze -> report -> wishlist -> settings -> sign out -> sign in -> delete account.
 import { chromium } from 'playwright-core';
+import { closeTour } from './_signin.mjs';
 import fs from 'node:fs';
 
 const base = process.env.BASE || 'http://localhost:5173';
@@ -44,9 +45,9 @@ await dialog.getByLabel('Password', { exact: true }).fill(password);
 await dialog.getByLabel('Confirm password').fill(password);
 await dialog.getByRole('checkbox').click();
 await dialog.getByRole('button', { name: 'Create account' }).click();
-await page.getByText(/Welcome, Test/).first().waitFor({ timeout: 15000 });
 await page.waitForURL(/\/app\/home/, { timeout: 15000 });
-check(true, 'sign-up succeeds, greets the user and opens the app');
+check(await page.locator('[data-tour]').getByText('Welcome to DeFaketive, Test').waitFor({ timeout: 15000 }).then(() => true).catch(() => false), 'sign-up succeeds, opens the app and greets the user in the welcome tour');
+await closeTour(page);
 await page.waitForTimeout(800);
 check(await page.getByText('Test Shopper').first().isVisible(), 'sidebar shows the account name');
 
@@ -72,7 +73,7 @@ await page.screenshot({ path: `${out}/flow_analyze_match.png` });
 await page.getByRole('button', { name: /Open report/ }).click();
 await page.waitForURL(/\/app\/report\?link=/);
 await page.getByRole('heading', { level: 2, name: /No warning signs found/ }).waitFor();
-check(true, 'saved report opens with its verdict');
+check(true, 'saved report opens with its result');
 
 // --- Save to wishlist ----------------------------------------------------------------
 await page.getByRole('button', { name: /^Save$/ }).click();

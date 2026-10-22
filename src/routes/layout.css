@@ -437,3 +437,25 @@
 		inset: -0.75rem -0.25rem;
 	}
 }
+
+/* Printing (the agency's evidence sheet): the page itself only, never the menu, the top bar or the footer.
+   The sheet takes the dark theme off while it prints, so the words are dark on white paper. */
+@media print {
+	[data-print='hide'],
+	[data-slot='sidebar-gap'],
+	[data-slot='sidebar-container'],
+	[data-sonner-toaster] {
+		display: none !important;
+	}
+	.page-view {
+		padding: 0 !important;
+	}
+	.reveal {
+		animation: none !important;
+		opacity: 1 !important;
+		transform: none !important;
+	}
+	[data-print='keep'] {
+		break-inside: avoid;
+	}
+}

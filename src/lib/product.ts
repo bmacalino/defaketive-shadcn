@@ -77,13 +77,13 @@ export const GROUP_NAMES: Record<ChipKind, string> = {
 	clear: 'No warnings',
 	caution: 'Caution',
 	safety: 'Safety reports',
-	unknown: 'No verdict yet'
+	unknown: 'No result yet'
 };
 
 /**
  * Which group a product is in. The colour follows the level the checker decided (its "tone"):
  * red is only for serious or repeated safety reports. A safety mention below that level still lifts a product
- * to Caution, so one report is never hidden behind "No warnings" or "No verdict yet".
+ * to Caution, so one report is never hidden behind "No warnings" or "No result yet".
  */
 export function chipFor(product?: Product | null): { kind: ChipKind; label: string } {
 	const t = tone(product);
@@ -222,11 +222,13 @@ export function scanTime(product: Product, entry?: ActivityEntry): number {
 }
 
 export function reportDate(product: Product): string | null {
-	const value = product.analysis_date || product.analyzed_at || product.updated_at;
+	return dateText(product.analysis_date || product.analyzed_at || product.updated_at);
+}
+
+/** A date as the screens write it ("Oct 19, 2026"), or null when there is none or it can't be read. */
+export function dateText(value?: string | null): string | null {
 	if (!value || Number.isNaN(Date.parse(value))) return null;
-	return new Intl.DateTimeFormat('en-PH', { month: 'short', day: 'numeric', year: 'numeric' }).format(
-		new Date(value)
-	);
+	return new Intl.DateTimeFormat('en-PH', { month: 'short', day: 'numeric', year: 'numeric' }).format(new Date(value));
 }
 
 export function dayLabel(time: number): string {
@@ -338,14 +340,6 @@ export function warningWords(reviews: Review[]) {
 	return [...tally.values()].sort((a, b) => b.count - a.count || a.word.localeCompare(b.word));
 }
 
-/** One plain sentence for the summary: how the reviews lean, and what was reported. */
-export function summaryHeadline(positiveShare: number, negativeShare: number, badges: BadgeView['badges']) {
-	const lean =
-		positiveShare >= 70 ? 'Mostly positive reviews' : negativeShare >= 50 ? 'Mostly negative reviews' : 'Mixed reviews';
-	const parts = (badges ?? []).filter((b) => b.mentions > 0).map((b) => `${b.label} (${b.mentions})`);
-	return parts.length ? `${lean}. Reported: ${parts.join(', ')}.` : `${lean}, and nothing flagged.`;
-}
-
 /** Split a quote into plain and highlighted pieces, using the character ranges the server sent. */
 export function segments(text: string, spans: [number, number][] | undefined): { text: string; mark: boolean }[] {
 	const source = String(text ?? '');
@@ -390,6 +384,13 @@ export function accuracyCopy(accuracy?: SafetyCheckAccuracy | null): string {
 	return `It is not perfect. When we tested it on ${Number(accuracy.sentences_checked).toLocaleString()} review sentences that two people had checked by hand, it caught ${accuracy.reports_caught} of ${accuracy.reports_confirmed} real safety reports, and ${harmless} of the ${accuracy.flags_raised} sentences it flagged turned out to be harmless. ${closing}`;
 }
 
+/** The same figures in one line, for the labels card on a report. */
+export function accuracyBrief(accuracy?: SafetyCheckAccuracy | null): string {
+	const closing = 'A flag is a reason to read, not proof.';
+	if (!accuracy) return closing;
+	return `In a test on ${Number(accuracy.sentences_checked).toLocaleString()} hand-checked review sentences, the check caught ${accuracy.reports_caught} of ${accuracy.reports_confirmed} real safety reports. ${closing}`;
+}
+
 // --- What each verdict means -------------------------------------------------
 
 /** In the order the server tests them. The wording matches dashboard_utils.VERDICT_HEADLINES. */
@@ -399,7 +400,7 @@ export const VERDICT_GUIDE: { state: string; tone: string; label: string; meanin
 	{ state: 'possible_counterfeit_or_defect', tone: 'moderate', label: 'Reviewers report fakes or defects', meaning: 'More fake or breakage reports than is typical for the product type' },
 	{ state: 'reviews_may_be_unreliable', tone: 'unknown', label: 'These reviews may not be trustworthy', meaning: 'Many reviews look duplicated or generic' },
 	{ state: 'no_warning_signs', tone: 'low', label: 'No warning signs found', meaning: 'Enough reviews, and no problem reaches a warning level. This is not proof that a product is safe' },
-	{ state: 'insufficient_evidence', tone: 'unknown', label: 'Not enough reviews to judge', meaning: 'Too few reviews for an overall verdict; any reports are still shown' }
+	{ state: 'insufficient_evidence', tone: 'unknown', label: 'Not enough reviews to judge', meaning: 'Too few reviews for an overall result; any reports are still shown' }
 ];
 
 /** The group a verdict is shown as, before any safety mention lifts it (see chipFor). */
@@ -408,12 +409,12 @@ export const groupOfTone = (value: string): ChipKind =>
 
 /** The four groups, and what each one means. The order runs from calm to serious, then the one with no answer. */
 export const VERDICT_GROUPS: { kind: ChipKind; label: string; meaning: string }[] = [
-	{ kind: 'clear', label: GROUP_NAMES.clear, meaning: "Enough reviews, no safety mentions, and nothing else reaches a warning level. Not proof it's safe." },
-	{ kind: 'caution', label: GROUP_NAMES.caution, meaning: 'Fakes or defects reported more than usual, or a safety concern mentioned, even by one reviewer.' },
-	{ kind: 'safety', label: GROUP_NAMES.safety, meaning: 'Two or more separate reports of fire, explosion or electric shock, or safety problems that are common in the reviews.' },
+	{ kind: 'clear', label: GROUP_NAMES.clear, meaning: "Enough reviews and nothing at a warning level. Not proof it's safe." },
+	{ kind: 'caution', label: GROUP_NAMES.caution, meaning: 'More fakes or defects than usual, or a safety concern, even from one reviewer.' },
+	{ kind: 'safety', label: GROUP_NAMES.safety, meaning: 'Two or more reports of fire, explosion or shock, or safety problems that are common.' },
 	{ kind: 'unknown', label: GROUP_NAMES.unknown, meaning: 'Too few reviews, reviews that may not be trustworthy, or not analyzed yet.' }
 ];
 
 /** Said wherever the verdicts are listed against their groups. */
 export const SAFETY_LIFT_NOTE =
-	'A product with any safety mention is shown as Caution at least, whatever its verdict, so one report is never hidden.';
+	'A product with any safety mention is shown as Caution at least, whatever its result, so one report is never hidden.';

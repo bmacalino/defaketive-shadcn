@@ -15,7 +15,6 @@
 	let {
 		reviews,
 		labelNames,
-		words,
 		serious = false,
 		filter = $bindable<EvidenceFilter>('all'),
 		tag = $bindable(''),
@@ -26,7 +25,6 @@
 	}: {
 		reviews: Review[];
 		labelNames: Record<string, string>;
-		words: { word: string; category: string; count: number }[];
 		/** True when this product's safety reports are serious or repeated. Only then are safety tags red. */
 		serious?: boolean;
 		filter?: EvidenceFilter;
@@ -88,12 +86,6 @@
 		}
 		limit = 6;
 	}
-	function pickWord(next: string) {
-		word = word === next ? '' : next;
-		filter = 'all';
-		tag = '';
-		limit = 6;
-	}
 	let sheetOpen = $state(false);
 	const activeCount = $derived((filter !== 'all' ? 1 : 0) + (tag ? 1 : 0) + (word ? 1 : 0));
 	const sentimentText: Record<string, string> = { positive: 'Positive', negative: 'Negative', uncertain: 'Mixed or unclear', unanalyzed: 'Not analyzed' };
@@ -105,13 +97,6 @@
 					<ToggleGroupItem {value}>{label} · {counts[value]}</ToggleGroupItem>
 				{/each}
 			</ToggleGroup>
-			{#if words.length}
-				<div class="flex flex-wrap gap-1.5" role="group" aria-label="Filter by warning word">
-					{#each words.slice(0, 5) as item (item.word)}
-						<Button size="xs" variant={word === item.word ? 'secondary' : 'outline'} aria-pressed={word === item.word} onclick={() => pickWord(item.word)}>{item.word}</Button>
-					{/each}
-				</div>
-			{/if}
 {/snippet}
 
 <Card bind:ref={el} id="report-evidence" tabindex={-1} class="scroll-mt-20">
@@ -128,7 +113,7 @@
 				<InputGroupInput type="search" placeholder="Filter by word..." autocomplete="off" aria-label="Filter reviews by word" bind:value={query} oninput={() => (limit = 6)} />
 			</InputGroup>
 		</div>
-		<!-- Wide screens: type chips and warning words sit under the search. Phones: a Filters button opens them from the bottom. -->
+		<!-- Wide screens: the type buttons sit under the search. Phones: a Filters button opens them from the bottom. -->
 		<div class="hidden flex-wrap items-center gap-3 sm:flex">
 			{@render filterControls()}
 		</div>
@@ -173,7 +158,7 @@
 	<SheetContent side="bottom" class="max-h-[85svh] rounded-t-xl">
 		<SheetHeader>
 			<SheetTitle>Filter reviews</SheetTitle>
-			<SheetDescription>Pick a kind of review, or a warning word.</SheetDescription>
+			<SheetDescription>Pick a kind of review.</SheetDescription>
 		</SheetHeader>
 		<div class="grid gap-4 overflow-y-auto px-4">{@render filterControls()}</div>
 		<SheetFooter>

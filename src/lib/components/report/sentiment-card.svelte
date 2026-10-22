@@ -36,10 +36,10 @@
 		<CardDescription>
 			{weighted
 				? 'We read extra low-star reviews on purpose, so the percentages are adjusted to reflect the whole listing.'
-				: 'How the reviews lean. Shown for context; it does not change the verdict.'}
+				: 'How the reviews lean. Shown for context; it does not change the result.'}
 		</CardDescription>
 	</CardHeader>
-	<CardContent class="flex-row flex-wrap items-center gap-6">
+	<CardContent class="flex-1 flex-row flex-wrap content-center items-center gap-6">
 		<div class="size-40 shrink-0" role="img" aria-label="Sentiment: {summary}">
 			<Chart.Container {config} class="aspect-square size-full">
 				<PieChart

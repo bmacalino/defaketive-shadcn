@@ -147,7 +147,7 @@ export interface GuestStatus {
 }
 
 export interface Me {
-	user: { name: string; email: string } | null;
+	user: { name: string; email: string; created_at?: string } | null;
 	guest: GuestStatus | null;
 }
 
@@ -169,3 +169,140 @@ export interface Job {
 }
 
 export type Marketplace = 'shopee' | 'lazada' | 'temu';
+
+// --- The agency view (agency_api.py) --------------------------------------------------------------------------------
+
+/** "reports": the checker's serious level (red). "mentions": any other report whose reviews mention safety. */
+export type AgencyLevel = 'reports' | 'mentions';
+
+export interface AgencyMe {
+	member: boolean;
+	office: string | null;
+	office_name: string | null;
+	/** This account has closed the "Get started" guide once; until then it opens by itself. */
+	guide_seen: boolean;
+}
+
+export interface AgencyRow {
+	link: string;
+	name: string;
+	img: string;
+	price: string;
+	seller: string;
+	kind: string;
+	level: AgencyLevel;
+	state: VerdictState;
+	tone: Tone;
+	headline: string;
+	safety_mentions: number;
+	summary: string;
+	reviews_analyzed: number;
+	quotes: Evidence[];
+	ratings_listed: number;
+	checked_at: string | null;
+	checked_with_current: boolean;
+	/** Not opened or marked as seen by this agency account yet. */
+	new: boolean;
+	/** This agency account's own status and note, or null when it gave neither. */
+	case: AgencyCase | null;
+}
+
+/** Where a listing stands for one agency account. '' is "No status". */
+export type AgencyStatus = '' | 'looking' | 'referred' | 'no_action';
+
+export interface AgencyCase {
+	status: AgencyStatus;
+	note: string;
+	updated_at: string;
+}
+
+export interface AgencyCharts {
+	hazards: { hazard: string; quotes: number }[];
+	years: { year: number; reviews: number }[];
+	/** Safety reviews with no date, or one Lazada showed as "3 weeks ago". */
+	recent_or_unknown: number;
+	prices: { band: string; listings: number; reports: number; mentions: number }[];
+	no_price: number;
+}
+
+export interface AgencySeller {
+	seller: string;
+	listings: number;
+	reports: number;
+	mentions: number;
+	flagged: { link: string; name: string; kind: string; level: AgencyLevel; safety_mentions: number }[];
+}
+
+export interface AgencySellers {
+	sellers: AgencySeller[];
+	note: string;
+	leads: string;
+}
+
+export interface AgencyWatch {
+	level: AgencyLevel;
+	rows: AgencyRow[];
+	new: Record<AgencyLevel, number>;
+	accuracy: SafetyCheckAccuracy;
+	note: string;
+}
+
+export interface AgencyKind {
+	kind: string;
+	listings: number;
+	reports: number;
+	mentions: number;
+	top_hazard: string | null;
+}
+
+export interface AgencyPatterns {
+	kinds: AgencyKind[];
+	charts: AgencyCharts;
+	listings: number;
+	note: string;
+	scope: string;
+}
+
+export interface AgencyQuote {
+	text: string;
+	hazard: string | null;
+	highlights: [number, number][];
+	/** This agency account said this sentence is not a safety problem. The report does not change. */
+	marked_not_safety: boolean;
+}
+
+export interface AgencyReview {
+	rating: number | null;
+	date: string | null;
+	/** The date reads like "3 weeks ago": true when the reviews were collected, not now. */
+	date_relative: boolean;
+	variation: string;
+	text: string;
+	quotes: AgencyQuote[];
+}
+
+export interface AgencySheet {
+	link: string;
+	name: string;
+	img: string;
+	price: string;
+	seller: string;
+	kind: string;
+	level: AgencyLevel | null;
+	state: VerdictState;
+	tone: Tone;
+	headline: string;
+	detail: string;
+	summary: string;
+	safety_mentions: number;
+	reviews_analyzed: number;
+	ratings_listed: number;
+	star_quota: number | null;
+	checked_at: string | null;
+	checked_with_current: boolean;
+	checker_version: string;
+	reviews: AgencyReview[];
+	accuracy: SafetyCheckAccuracy | null;
+	note: string;
+	case: AgencyCase | null;
+}

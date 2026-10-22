@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { goto } from '$app/navigation';
+	import { afterNavigate, goto } from '$app/navigation';
 	import ArrowLeftIcon from '@lucide/svelte/icons/arrow-left';
 	import ArrowRightIcon from '@lucide/svelte/icons/arrow-right';
 	import ExternalLinkIcon from '@lucide/svelte/icons/external-link';
@@ -7,7 +7,6 @@
 	import { tick } from 'svelte';
 	import { api, ApiError } from '#lib/api.js';
 	import { reportHref } from '#lib/nav.js';
-	import CountUp from '#lib/components/app/count-up.svelte';
 	import ProductImage from '#lib/components/app/product-image.svelte';
 	import { Dialog, DialogContent, DialogHeader, DialogTitle } from '#lib/components/ui/dialog/index.js';
 	import MaximizeIcon from '@lucide/svelte/icons/maximize-2';
@@ -21,13 +20,11 @@
 	import WordsCard from '#lib/components/report/words-card.svelte';
 	import { Alert, AlertDescription, AlertTitle } from '#lib/components/ui/alert/index.js';
 	import { Button } from '#lib/components/ui/button/index.js';
-	import { Card, CardContent, CardHeader, CardTitle } from '#lib/components/ui/card/index.js';
-	import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '#lib/components/ui/collapsible/index.js';
+	import { Card } from '#lib/components/ui/card/index.js';
 	import EmptyState from '#lib/components/app/empty-state.svelte';
 	import ReportSkeleton from '#lib/components/app/report-skeleton.svelte';
 	import { Tabs, TabsContent, TabsList, TabsTrigger } from '#lib/components/ui/tabs/index.js';
 	import {
-		accuracyCopy,
 		behindChecker,
 		chipFor,
 		counts,
@@ -45,18 +42,17 @@
 		scannable,
 		sentimentLabel,
 		sentimentPercentages,
-		summaryHeadline,
 		view,
 		warningWords,
 		type EvidenceFilter
 	} from '#lib/product.js';
+	import { page } from '$app/state';
+	import { agency } from '#lib/stores/agency.svelte.js';
 	import { auth } from '#lib/stores/auth.svelte.js';
 	import { library } from '#lib/stores/library.svelte.js';
 	import { scan } from '#lib/stores/scan.svelte.js';
 	import { ui } from '#lib/stores/ui.svelte.js';
 	import type { Product } from '#lib/types.js';
-	import { cn } from '#lib/utils.js';
-	import ChevronDownIcon from '@lucide/svelte/icons/chevron-down';
 	import CircleAlertIcon from '@lucide/svelte/icons/circle-alert';
 	import { onMount } from 'svelte';
 
@@ -149,14 +145,10 @@
 					? `We read all ${uniqueCount.toLocaleString()} of this listing's reviews.`
 					: `We read ${uniqueCount.toLocaleString()} review${uniqueCount === 1 ? '' : 's'}.`
 	);
-	const duplicateCount = $derived(
-		Number(summary.duplicate_review_count ?? allReviews.filter((item) => item.is_duplicate).length) || 0
-	);
 	const flagged = $derived(reviews.filter((item) => reviewTags(item).length));
 	const sentiment = $derived(product ? sentimentPercentages(product) : []);
 	const share = (label: string) => sentiment.find((item) => item.label === label) ?? { value: 0, percent: 0 };
 	const positive = $derived(share('Positive'));
-	const uncertain = $derived(share('Uncertain'));
 	const negative = $derived(share('Negative'));
 	const weighted = $derived(Boolean(summary.sentiment_shares));
 	const labelNames = $derived(Object.fromEntries((verdict.labels ?? []).map((item) => [item.category, item.label])));
@@ -260,8 +252,6 @@
 	}
 
 	let photoOpen = $state(false);
-	let detailOpen = $state(false);
-	let summaryOpen = $state(false);
 
 	// A guest who is out of free scans is told so on a report, and can dismiss it for this visit.
 	const LIMIT_KEY = 'defaketive-limit-dismissed';
@@ -273,6 +263,30 @@
 			/* show the notice */
 		}
 	});
+	// The button above the report goes back to the page it was opened from (the DTI view, Products, History...).
+	// Opened with no page before it in the app (a shared link, a new tab), it offers to check another product.
+	const CAME_FROM: Record<string, string> = {
+		'/app/home': 'Back to Home',
+		'/app/products': 'Back to Products',
+		'/app/history': 'Back to History',
+		'/app/wishlist': 'Back to Wishlist',
+		'/app/agency': `Back to ${agency.title}`,
+		'/app/agency/evidence': 'Back to the evidence sheet',
+		'/app/report': 'Back to the previous report',
+		'/scan/report': 'Back to the previous report'
+	};
+	let backLabel = $state<string | null>(null);
+	afterNavigate(({ from }) => {
+		// `from` can be there with no address (a first load, or a redirect from an /app page for a guest).
+		const path = from?.url?.pathname;
+		// Only from another report or one of these pages; the Check page keeps "Check another product".
+		backLabel = path && (path !== page.url.pathname || from?.url?.search !== page.url.search) ? (CAME_FROM[path] ?? null) : null;
+	});
+	function goBack() {
+		if (backLabel) history.back();
+		else goto(guest ? '/scan' : '/app/analyze');
+	}
+
 	function dismissLimit() {
 		limitDismissed = true;
 		try {
@@ -286,8 +300,8 @@
 <svelte:head><title>{product ? `${name} · DeFaketive` : 'Product report · DeFaketive'}</title></svelte:head>
 
 <div class="flex flex-wrap items-center justify-between gap-2">
-	<Button variant="ghost" size="sm" class="-ml-2" onclick={() => goto(guest ? '/scan' : '/app/analyze')}>
-		<ArrowLeftIcon /> Check another product
+	<Button variant="ghost" size="sm" class="-ml-2" onclick={goBack}>
+		<ArrowLeftIcon /> {backLabel ?? 'Check another product'}
 	</Button>
 	<!-- Only while loading: once the report is here, the count of reviews read sits under the verdict. -->
 	<p class="text-muted-foreground text-sm" aria-live="polite">{#if loading}Loading product report…{/if}</p>
@@ -396,7 +410,7 @@
 				<!-- The verdict alone would not be orange: say why this product is. -->
 				<p class="bg-muted rounded-lg px-3 py-2 text-sm">
 					This product is shown as <b>{GROUP_NAMES.caution}</b> because {safetyMentions} review{safetyMentions === 1 ? ' mentions' : 's mention'} a
-					safety concern. One mention is enough for a closer look, whatever the overall verdict says.
+					safety concern. One mention is enough for a closer look, whatever the overall result says.
 				</p>
 			{/if}
 			{#if behindChecker(product)}
@@ -414,15 +428,17 @@
 			<!-- One thing to do next, chosen by the verdict. -->
 			<div class="flex flex-wrap items-center gap-2" role="group" aria-label="What to do next">
 				{#if group === 'safety' || group === 'caution'}
-					<Button onclick={() => showReviews(flagged.length ? 'reported' : 'all')}>
+					<!-- Someone who has been warned mostly wants a safer choice: with some to show, those come first. -->
+					{#if recommendations.length}
+						<Button onclick={showSimilar}>
+							See {recommendations.length} similar product{recommendations.length === 1 ? '' : 's'} with no warnings
+							<ArrowRightIcon />
+						</Button>
+					{/if}
+					<Button variant={recommendations.length ? 'outline' : 'default'} onclick={() => showReviews(flagged.length ? 'reported' : 'all')}>
 						{flagged.length === 1 ? 'Read the flagged review' : flagged.length ? `Read the ${flagged.length} flagged reviews` : 'Read the reviews'}
 						<ArrowRightIcon />
 					</Button>
-					{#if recommendations.length}
-						<Button variant="outline" onclick={showSimilar}>
-							See {recommendations.length} similar product{recommendations.length === 1 ? '' : 's'} with no warnings
-						</Button>
-					{/if}
 				{:else if group === 'clear'}
 					<!-- No warning is not the same as no complaint: point at what there is to read. -->
 					{#if flagged.length}
@@ -437,7 +453,7 @@
 						<Button variant="outline" onclick={() => showReviews('all')}>Read all reviews <ArrowRightIcon /></Button>
 					{/if}
 				{:else if flagged.length}
-					<!-- No verdict yet, but the few reviews there are still say something: lead to those. -->
+					<!-- No result yet, but the few reviews there are still say something: lead to those. -->
 					<Button variant="outline" onclick={() => showReviews('reported')}>
 						{flagged.length === 1 ? 'Read the flagged review' : `Read the ${flagged.length} flagged reviews`} <ArrowRightIcon />
 					</Button>
@@ -468,97 +484,13 @@
 			<TabsTrigger value="similar"><span>Similar<span class="hidden sm:inline">&nbsp;products{recommendations.length ? ` · ${recommendations.length}` : ''}</span></span></TabsTrigger>
 		</TabsList>
 		<TabsContent value="overview" class="animate-in fade-in-0 slide-in-from-bottom-1 grid gap-6 duration-200">
-	<div class="grid gap-6">
-	<!-- Two short explanations, written once here and placed further down, beside the sentiment card. -->
-	{#snippet whyCard()}
-	<Card>
-		<Collapsible bind:open={detailOpen}>
-			<CardHeader>
-				<CollapsibleTrigger>
-					{#snippet child({ props })}
-						<button {...props} class="flex w-full items-center justify-between gap-3 text-left">
-							<span class="grid gap-1">
-								<span class="text-muted-foreground text-xs font-medium tracking-wide uppercase">How the check works</span>
-								<CardTitle class="text-xl">Why you see reviews, not a score</CardTitle>
-							</span>
-							<ChevronDownIcon class={cn('size-5 shrink-0 transition-transform', detailOpen && 'rotate-180')} />
-						</button>
-					{/snippet}
-				</CollapsibleTrigger>
-			</CardHeader>
-			<CollapsibleContent>
-				<CardContent class="text-muted-foreground grid gap-3 text-sm">
-					<p>
-						DeFaketive reads every review sentence and looks for the words people use when a product catches fire, smokes,
-						gives a shock, turns out to be fake, breaks, feels cheaply made or differs from the listing, in English, Tagalog
-						and Taglish. It shows you the sentences it found instead of a single score, because a score hides what reviewers
-						actually said.
-					</p>
-					<p>{accuracyCopy(verdict.safety_check_accuracy)}</p>
-					<p class="text-foreground flex flex-wrap gap-x-6 gap-y-1 font-medium">
-						<span>{flagged.length} of {uniqueCount} reviews flagged</span>
-						<span>{duplicateCount} duplicates excluded</span>
-					</p>
-				</CardContent>
-			</CollapsibleContent>
-		</Collapsible>
-	</Card>
-	{/snippet}
-	{#snippet summaryCard()}
-	<Card>
-		<Collapsible bind:open={summaryOpen}>
-			<CardHeader>
-				<CollapsibleTrigger>
-					{#snippet child({ props })}
-						<button {...props} class="flex w-full items-center justify-between gap-3 text-left">
-							<span class="grid gap-1">
-								<span class="text-muted-foreground text-xs font-medium tracking-wide uppercase">Report summary</span>
-								<CardTitle class="text-xl">{summaryHeadline(positive.percent, negative.percent, verdict.badges)}</CardTitle>
-							</span>
-							<ChevronDownIcon class={cn('size-5 shrink-0 transition-transform', summaryOpen && 'rotate-180')} />
-						</button>
-					{/snippet}
-				</CollapsibleTrigger>
-			</CardHeader>
-			<CollapsibleContent>
-				<CardContent class="grid gap-4 text-sm">
-					<p class="text-muted-foreground">
-						DeFaketive read {uniqueCount.toLocaleString()} unique reviews ({duplicateCount} duplicates excluded):
-						{#if weighted}
-							about {positive.percent.toFixed(0)}% positive, {uncertain.percent.toFixed(0)}% mixed or unclear and {negative.percent.toFixed(0)}% negative, adjusted to reflect the whole listing
-						{:else}
-							{positive.value} positive, {uncertain.value} mixed or unclear and {negative.value} negative
-						{/if}. The check flagged {flagged.length} review{flagged.length === 1 ? '' : 's'}{words.length
-							? `, led by ${words.slice(0, 2).map((item) => `“${item.word}”`).join(' and ')}`
-							: ''}.
-					</p>
-					<dl class="grid grid-cols-2 gap-4 sm:grid-cols-4">
-						<div><dt class="text-muted-foreground text-xs">Positive</dt><dd class="text-lg font-semibold tabular-nums"><CountUp value={positive.percent} decimals={1} />%</dd></div>
-						<div><dt class="text-muted-foreground text-xs">Negative</dt><dd class="text-lg font-semibold tabular-nums"><CountUp value={negative.percent} decimals={1} />%</dd></div>
-						<div><dt class="text-muted-foreground text-xs">Flagged reviews</dt><dd class="text-lg font-semibold tabular-nums"><CountUp value={flagged.length} /></dd></div>
-						<div><dt class="text-muted-foreground text-xs">Duplicates excluded</dt><dd class="text-lg font-semibold tabular-nums"><CountUp value={duplicateCount} /></dd></div>
-					</dl>
-				</CardContent>
-			</CollapsibleContent>
-		</Collapsible>
-	</Card>
-	{/snippet}
-
-	<!-- The reviewers' own words come first: they are what the verdict rests on. -->
-	<ChecksCard {product} {uniqueCount} onread={readAll} />
-
-	<!-- Then the numbers behind it. On a phone these simply stack. -->
-	<div class="grid items-start gap-6 lg:grid-cols-2">
-		<SentimentCard {product} {uniqueCount} />
-		<div class="grid gap-6">
-			{@render summaryCard()}
-			{@render whyCard()}
-		</div>
-	</div>
-
-	<!-- Last: what the labels mean. The link under the verdict jumps here. -->
-	<VerdictGuide {product} />
-	</div>
+			<!-- The chart and what the four labels mean, side by side (stacked on a phone); the reviewers' own words follow. -->
+			<div class="grid gap-6 lg:grid-cols-2">
+				<SentimentCard {product} {uniqueCount} />
+				<!-- The link under the result jumps here. -->
+				<VerdictGuide {product} />
+			</div>
+			<ChecksCard {product} {uniqueCount} onread={readAll} />
 		</TabsContent>
 
 		<TabsContent value="evidence" class="animate-in fade-in-0 slide-in-from-bottom-1 grid gap-6 duration-200">
@@ -566,7 +498,6 @@
 			<Evidence
 				{reviews}
 				{labelNames}
-				{words}
 				serious={chipFor(product).kind === 'safety'}
 				bind:filter
 				bind:tag

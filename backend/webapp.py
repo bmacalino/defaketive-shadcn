@@ -187,7 +187,7 @@ def _guest_status() -> dict[str, int]:
 
 def _me() -> dict[str, Any]:
     user = _current_user()
-    shown = {"name": user["name"], "email": user["email"]} if user else None
+    shown = {"name": user["name"], "email": user["email"], "created_at": user.get("created_at")} if user else None
     return {"user": shown, "guest": None if user else _guest_status()}
 
 
@@ -730,7 +730,7 @@ def create_app(test_config: dict[str, Any] | None = None) -> Flask:
                 flagged.append({**row, "Main issue": _main_product_issue(product)})
         # Safety warnings first, then by how many safety reports they carry.
         flagged.sort(
-            key=lambda row: (row["Verdict"] != "Reviewers report safety problems", -row["Safety reports"])
+            key=lambda row: (row["Result"] != "Reviewers report safety problems", -row["Safety reports"])
         )
         marketplaces = {
             str(row.get("Platform") or "").strip()

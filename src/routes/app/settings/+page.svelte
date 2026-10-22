@@ -1,4 +1,7 @@
 <script lang="ts">
+	import { page } from '$app/state';
+	import CompassIcon from '@lucide/svelte/icons/compass';
+	import ShieldCheckIcon from '@lucide/svelte/icons/shield-check';
 	import { mode, setMode } from 'mode-watcher';
 	import AccountDialogs from '#lib/components/app/account-dialogs.svelte';
 	import { Avatar, AvatarFallback } from '#lib/components/ui/avatar/index.js';
@@ -8,11 +11,13 @@
 	import { Separator } from '#lib/components/ui/separator/index.js';
 	import { Switch } from '#lib/components/ui/switch/index.js';
 	import { initials } from '#lib/product.js';
+	import { agency } from '#lib/stores/agency.svelte.js';
 	import { auth } from '#lib/stores/auth.svelte.js';
 	import { prefs } from '#lib/stores/prefs.svelte.js';
 	import { ui } from '#lib/stores/ui.svelte.js';
 
-	let dialog = $state<'' | 'edit' | 'clear' | 'delete'>('');
+	// ?edit=1 opens the Edit account pop-up straight away (the agency guide's "Change my password" links here).
+	let dialog = $state<'' | 'edit' | 'clear' | 'delete'>(page.url.searchParams.get('edit') === '1' ? 'edit' : '');
 </script>
 
 <svelte:head><title>Settings · DeFaketive</title></svelte:head>
@@ -86,7 +91,22 @@
 		</CardContent>
 	</Card>
 
-	<Card class="reveal" style="--i:2" aria-labelledby="settings-danger">
+	<Card class="reveal" style="--i:2" aria-labelledby="settings-help">
+		<CardHeader>
+			<CardTitle id="settings-help">Getting started</CardTitle>
+			<CardDescription>
+				{agency.member ? `The short guides to DeFaketive and to the ${agency.title}.` : 'The short guide shown when you created your account.'}
+			</CardDescription>
+		</CardHeader>
+		<CardContent class="flex-row flex-wrap gap-2">
+			{#if agency.member}
+				<Button variant="outline" onclick={() => (agency.guideOpen = true)}><ShieldCheckIcon /> Show the {agency.office || 'agency'} guide</Button>
+			{/if}
+			<Button variant="outline" onclick={() => (ui.tourOpen = true)}><CompassIcon /> Show the welcome tour</Button>
+		</CardContent>
+	</Card>
+
+	<Card class="reveal" style="--i:3" aria-labelledby="settings-danger">
 		<CardHeader>
 			<CardTitle id="settings-danger">Danger zone</CardTitle>
 			<CardDescription>These can't be undone.</CardDescription>

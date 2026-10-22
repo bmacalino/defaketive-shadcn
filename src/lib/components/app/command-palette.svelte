@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
 	import CircleHelpIcon from '@lucide/svelte/icons/circle-help';
+	import CompassIcon from '@lucide/svelte/icons/compass';
 	import HeartIcon from '@lucide/svelte/icons/heart';
 	import HistoryIcon from '@lucide/svelte/icons/history';
 	import HouseIcon from '@lucide/svelte/icons/house';
@@ -13,6 +14,7 @@
 	import PuzzleIcon from '@lucide/svelte/icons/puzzle';
 	import ScanSearchIcon from '@lucide/svelte/icons/scan-search';
 	import SettingsIcon from '@lucide/svelte/icons/settings';
+	import ShieldCheckIcon from '@lucide/svelte/icons/shield-check';
 	import UserPlusIcon from '@lucide/svelte/icons/user-plus';
 	import type { Component } from 'svelte';
 	import { toggleMode } from 'mode-watcher';
@@ -29,6 +31,7 @@
 	import { reportHref } from '#lib/nav.js';
 	import { signOut } from '#lib/session.js';
 	import { chipFor, linkIdentity, platformName, view } from '#lib/product.js';
+	import { agency } from '#lib/stores/agency.svelte.js';
 	import { auth } from '#lib/stores/auth.svelte.js';
 	import { catalog } from '#lib/stores/catalog.svelte.js';
 	import { library } from '#lib/stores/library.svelte.js';
@@ -41,7 +44,7 @@
 		{ href: '/scan', label: 'Check a product', icon: ScanSearchIcon, words: 'scan analyze link paste new guest' },
 		{ href: '/#how', label: 'How it works', icon: ListOrderedIcon, words: 'steps guide' },
 		{ href: '/extension', label: 'Get the extension', icon: PuzzleIcon, words: 'browser chrome edge install lazada button' },
-		{ href: '/#faq', label: 'FAQ', icon: CircleHelpIcon, words: 'questions help verdicts' },
+		{ href: '/#faq', label: 'FAQ', icon: CircleHelpIcon, words: 'questions help verdicts results' },
 		{ href: '/#about', label: 'About', icon: InfoIcon, words: 'team project' }
 	];
 	const appPages: Page[] = [
@@ -53,22 +56,28 @@
 		{ href: '/app/settings', label: 'Settings', icon: SettingsIcon, words: 'account preferences dark alerts' },
 		{ href: '/app/extension', label: 'Get the extension', icon: PuzzleIcon, words: 'browser chrome edge install lazada button' },
 		{ href: '/app/about', label: 'About', icon: InfoIcon, words: 'team project' },
-		{ href: '/app/faq', label: 'FAQ', icon: CircleHelpIcon, words: 'questions help verdicts' }
+		{ href: '/app/faq', label: 'FAQ', icon: CircleHelpIcon, words: 'questions help verdicts results' }
 	];
-	const pages = $derived(auth.user ? appPages : guestPages);
+	// The agency view only for an agency's account (the server decides; this only lists it).
+	const agencyPage = $derived<Page>({
+		href: '/app/agency',
+		label: agency.title,
+		icon: ShieldCheckIcon,
+		words: 'agency dti government watch list safety evidence sheet'
+	});
+	const pages = $derived(auth.user ? (agency.member ? [agencyPage, ...appPages] : appPages) : guestPages);
 
-	// Your own products first, then everything else that was analyzed. One entry per listing.
+	// Your own products first, then everything else that was analyzed. One entry per listing. All of them: a cut-off
+	// (it was 80) hid products further down the list from the search (found 20 Oct 2026, with 186 saved products).
 	const products = $derived.by(() => {
 		if (!auth.user) return [];
 		const seen = new Set<string>();
-		return [...library.mine, ...catalog.browse]
-			.filter((product) => {
-				const key = linkIdentity(product.link);
-				if (!key || seen.has(key)) return false;
-				seen.add(key);
-				return true;
-			})
-			.slice(0, 80);
+		return [...library.mine, ...catalog.browse].filter((product) => {
+			const key = linkIdentity(product.link);
+			if (!key || seen.has(key)) return false;
+			seen.add(key);
+			return true;
+		});
 	});
 
 	function go(path: string) {
@@ -100,6 +109,10 @@
 		<CommandGroup heading="Actions">
 			<CommandItem value="toggle dark light theme mode" onSelect={() => run(toggleMode)}><MoonIcon /> Switch light or dark theme</CommandItem>
 			{#if auth.user}
+				{#if agency.member}
+					<CommandItem value="dti agency guide get started help" onSelect={() => run(() => (agency.guideOpen = true))}><ShieldCheckIcon /> Show the {agency.office || 'agency'} guide</CommandItem>
+				{/if}
+				<CommandItem value="welcome tour guide help get started" onSelect={() => run(() => (ui.tourOpen = true))}><CompassIcon /> Show the welcome tour</CommandItem>
 				<CommandItem value="sign out log out" onSelect={() => run(signOut)}><LogOutIcon /> Sign out</CommandItem>
 			{:else}
 				<CommandItem value="sign in log in" onSelect={() => run(() => ui.openAuth('signin'))}><LogInIcon /> Sign in</CommandItem>

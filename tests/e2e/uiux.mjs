@@ -64,11 +64,11 @@ async function pretendScan(page, { hold = false } = {}) {
 const appHeader = (page) => page.locator('header.sticky');
 const pill = (page) => appHeader(page).getByRole('button', { name: /Scanning…|Report ready|Scan stopped|needs you|Waiting for our team|Check progress/ });
 
-// ---- 1. Report: tab labels in one piece, the verdict's first line, the numbers under it ----
+// ---- 1. Report: tab labels in one piece, the result's first line, the numbers under it ----
 {
 	const { context, page } = await newPage();
 	await page.goto(reportUrl(SAVED), { waitUntil: 'networkidle' });
-	await page.locator('[aria-label="Verdict"]').waitFor({ timeout: 15000 });
+	await page.locator('[aria-label="Result"]').waitFor({ timeout: 15000 });
 	await page.waitForTimeout(1500);
 	const gaps = await page.evaluate(() =>
 		[...document.querySelectorAll('[data-slot="tabs-trigger"]')].slice(1).map((tab) => {
@@ -94,11 +94,11 @@ const pill = (page) => appHeader(page).getByRole('button', { name: /Scanning…|
 {
 	const { context, page } = await newPage({ width: 390, height: 844 });
 	await page.goto(reportUrl(SAVED), { waitUntil: 'networkidle' });
-	await page.locator('[aria-label="Verdict"]').waitFor({ timeout: 15000 });
+	await page.locator('[aria-label="Result"]').waitFor({ timeout: 15000 });
 	await page.waitForTimeout(1500);
-	const line = await page.locator('[aria-label="Verdict"] .verdict-step').first().evaluate((el) => el.getBoundingClientRect().height);
-	check(line < 32, `phone: the verdict's first line stays on one line (${Math.round(line)}px)`);
-	check((await page.locator('[aria-label="Verdict"]').textContent()).includes('What reviewers report'), 'phone: "What reviewers report" is still there for screen readers');
+	const line = await page.locator('[aria-label="Result"] .verdict-step').first().evaluate((el) => el.getBoundingClientRect().height);
+	check(line < 32, `phone: the result's first line stays on one line (${Math.round(line)}px)`);
+	check((await page.locator('[aria-label="Result"]').textContent()).includes('What reviewers report'), 'phone: "What reviewers report" is still there for screen readers');
 	check((await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth)) <= 1, 'phone: the report does not scroll sideways');
 	await page.screenshot({ path: `${out}/uiux_report_phone.png` });
 	await context.close();
@@ -230,8 +230,11 @@ async function guestPage({ width = 1280, height = 900, scheme = 'light' } = {}) 
 	const widened = await answers();
 	check(widened > narrowed && !new URL(page.url()).searchParams.has('q'), `clearing it shows everything again and leaves the address (${widened} cards)`);
 	await page.goto(base + '/app/analyze', { waitUntil: 'networkidle' });
-	const tip = page.getByRole('link', { name: /Get the extension/ }).last();
-	check((await tip.getAttribute('href')) === '/app/extension', 'the side card points to the extension guide');
+	check(
+		(await page.getByRole('heading', { name: 'What happens next?' }).count()) === 0 &&
+			(await page.getByRole('main').getByRole('link', { name: /Get the extension/ }).count()) === 0,
+		'Check a product has no side cards: just the link box'
+	);
 	await context.close();
 }
 
@@ -327,6 +330,103 @@ async function guestPage({ width = 1280, height = 900, scheme = 'light' } = {}) 
 	await page.goto(`${base}/check-from-extension?handoff=00000000-0000-4000-8000-000000000000`, { waitUntil: 'networkidle' });
 	await page.getByText("The DeFaketive extension didn't answer").waitFor({ timeout: 10000 });
 	check((await page.getByRole('link', { name: 'How to install the extension' }).getAttribute('href')) === '/extension', '"didn\'t answer" links to how to install it');
+	await context.close();
+}
+
+// ======== The welcome tour for new accounts (20 Oct 2026) ========
+async function signUpInTheDialog(page) {
+	await page.goto(base + '/', { waitUntil: 'networkidle' });
+	await page.waitForTimeout(800);
+	await page.getByRole('button', { name: 'Create account' }).first().click();
+	const form = page.getByRole('dialog');
+	await form.getByLabel('Full name').fill('Tour Tester');
+	await form.getByLabel('Email').fill(`tour${Date.now()}${Math.random().toString(36).slice(2, 6)}@example.com`);
+	await form.getByLabel('Password', { exact: true }).fill('correct horse battery');
+	await form.getByLabel('Confirm password').fill('correct horse battery');
+	await form.getByRole('checkbox').check();
+	await form.getByRole('button', { name: 'Create account' }).click();
+}
+const tour = (page) => page.locator('[data-tour]');
+// Closed means gone, after the closing fade.
+const tourGone = async (page) => (await tour(page).waitFor({ state: 'detached', timeout: 5000 }).then(() => true).catch(() => false));
+{
+	const context = await browser.newContext({ viewport: { width: 1280, height: 900 } });
+	const page = await context.newPage();
+	page.on('pageerror', (error) => errors.push(error.message));
+	await signUpInTheDialog(page);
+	await page.waitForURL(/\/app\/home/, { timeout: 15000 });
+	await tour(page).getByRole('heading', { name: 'Welcome to DeFaketive, Tour' }).waitFor({ timeout: 10000 });
+	check(true, 'a new account gets the welcome tour, greeted by first name');
+	check(await tour(page).getByText('Step 1 of 4').isVisible(), 'it says "Step 1 of 4"');
+	await page.waitForTimeout(400);
+	await page.screenshot({ path: `${out}/uiux_tour_1.png` });
+	await axe(page, 'welcome tour, page 1');
+	const next = tour(page).getByRole('button', { name: /^Next/ });
+	const titles = [];
+	for (let i = 0; i < 3; i += 1) {
+		await next.click();
+		await page.waitForTimeout(350);
+		titles.push((await tour(page).getByRole('heading').first().innerText()).trim());
+		await page.screenshot({ path: `${out}/uiux_tour_${i + 2}.png` });
+	}
+	check(titles.join(' | ') === 'Check a product | Read the result | Keep track of what you check', `Next walks through the pages (${titles.join(' | ')})`);
+	await tour(page).getByRole('button', { name: /Back/ }).click();
+	await page.waitForTimeout(350);
+	const labels = await tour(page).locator('[data-slot="badge"]').allInnerTexts();
+	check(labels.map((t) => t.trim()).join(' | ') === 'No warnings | Caution | Safety reports | No result yet', `Back works; the labels page shows the four labels (${labels.join(' | ')})`);
+	await axe(page, 'welcome tour, the labels page');
+	await next.click();
+	await tour(page).getByRole('button', { name: 'Check my first product' }).click();
+	await page.waitForURL(/\/app\/analyze/, { timeout: 10000 });
+	check(await tourGone(page), 'the last button closes the tour and opens Check a product');
+	// Shown again on request: Settings and Ctrl+K.
+	await page.goto(base + '/app/settings', { waitUntil: 'networkidle' });
+	await page.getByRole('button', { name: 'Show the welcome tour' }).click();
+	await tour(page).getByText('Step 1 of 4').waitFor({ timeout: 5000 });
+	check(true, 'Settings shows the tour again, from the first page');
+	await tour(page).getByRole('button', { name: 'Skip' }).click();
+	await page.waitForTimeout(300);
+	check(await tourGone(page), 'Skip closes it');
+	await page.keyboard.press('Control+k');
+	await page.getByRole('dialog').getByRole('option', { name: /Show the welcome tour/ }).click();
+	await tour(page).getByText('Step 1 of 4').waitFor({ timeout: 5000 });
+	check(true, 'Ctrl+K shows it too');
+	await page.keyboard.press('Escape');
+	await page.waitForTimeout(300);
+	check(await tourGone(page), 'Esc closes it');
+	// Signing in again (not a new account) does not show it.
+	await context.close();
+}
+{
+	const context = await browser.newContext({ viewport: { width: 390, height: 844 }, colorScheme: 'dark' });
+	const page = await context.newPage();
+	page.on('pageerror', (error) => errors.push(error.message));
+	await signUpInTheDialog(page);
+	await tour(page).getByText('Step 1 of 4').waitFor({ timeout: 15000 });
+	for (let i = 0; i < 2; i += 1) await tour(page).getByRole('button', { name: /^Next/ }).click();
+	await page.waitForTimeout(400);
+	const box = await tour(page).evaluate((el) => ({ width: el.getBoundingClientRect().width, scroll: el.scrollWidth - el.clientWidth }));
+	check(box.width <= 390 && box.scroll <= 1, `phone: the tour fits the screen (${Math.round(box.width)}px wide)`);
+	await page.screenshot({ path: `${out}/uiux_tour_phone_dark.png` });
+	await axe(page, 'welcome tour on a phone, dark');
+	await context.close();
+}
+{
+	// An existing account signing in gets no tour.
+	const context = await browser.newContext({ viewport: { width: 1280, height: 900 } });
+	const { email, password } = await signUp(context, base);
+	await context.clearCookies();
+	const page = await context.newPage();
+	await page.goto(base + '/', { waitUntil: 'networkidle' });
+	await page.waitForTimeout(800);
+	await page.getByRole('button', { name: 'Sign in' }).first().click();
+	const form = page.getByRole('dialog');
+	await form.getByLabel('Email').fill(email);
+	await form.getByLabel('Password', { exact: true }).fill(password);
+	await form.getByRole('button', { name: 'Sign in' }).click();
+	await page.waitForURL(/\/app\/home/, { timeout: 15000 });
+	await page.waitForTimeout(1200);
+	check(!(await tour(page).count()), 'signing in to an existing account shows no tour');
 	await context.close();
 }
 

@@ -8,6 +8,9 @@
 	import ProductRowItem from '#lib/components/app/product-row-item.svelte';
 	import { Button } from '#lib/components/ui/button/index.js';
 	import { Card } from '#lib/components/ui/card/index.js';
+	import { Input } from '#lib/components/ui/input/index.js';
+	import { Label } from '#lib/components/ui/label/index.js';
+	import * as Select from '#lib/components/ui/select/index.js';
 	import { ToggleGroup, ToggleGroupItem } from '#lib/components/ui/toggle-group/index.js';
 	import { chipFor, dayLabel, GROUP_NAMES, type ChipKind } from '#lib/product.js';
 	import { library } from '#lib/stores/library.svelte.js';
@@ -30,6 +33,54 @@
 		if (!filter) filter = 'all';
 	});
 
+	// Which days to show. A preset counts today as the first day: "Last 7 days" is today and the six before it.
+	type When = 'any' | 'today' | '7' | '30' | 'custom';
+	const WHEN: [When, string][] = [
+		['any', 'Any time'],
+		['today', 'Today'],
+		['7', 'Last 7 days'],
+		['30', 'Last 30 days'],
+		['custom', 'Choose dates…']
+	];
+	let when = $state<When>('any');
+	const whenLabel = $derived(WHEN.find(([value]) => value === when)?.[1] ?? '');
+	let from = $state('');
+	let to = $state('');
+	const todayText = new Date().toLocaleDateString('en-CA');
+
+	// Midnight, on this computer's clock, `n` days from today (negative = earlier). A date box's "2026-10-19" is read the same way.
+	const midnight = (n: number) => {
+		const now = new Date();
+		return new Date(now.getFullYear(), now.getMonth(), now.getDate() + n).getTime();
+	};
+	const midnightOf = (text: string) => {
+		const [year, month, day] = text.split('-').map(Number);
+		return year ? new Date(year, month - 1, day).getTime() : NaN;
+	};
+
+	// From the first moment a date filter lets through, up to (not including) the last. Either end can be open.
+	const range = $derived.by((): { start: number; end: number } => {
+		if (when === 'today') return { start: midnight(0), end: Infinity };
+		if (when === '7') return { start: midnight(-6), end: Infinity };
+		if (when === '30') return { start: midnight(-29), end: Infinity };
+		if (when !== 'custom') return { start: -Infinity, end: Infinity };
+		let a = midnightOf(from);
+		let b = midnightOf(to);
+		if (a > b) [a, b] = [b, a];
+		return {
+			start: Number.isNaN(a) ? -Infinity : a,
+			end: Number.isNaN(b) ? Infinity : new Date(b + 36 * 3_600_000).setHours(0, 0, 0, 0)
+		};
+	});
+	const dated = $derived(range.start > -Infinity || range.end < Infinity);
+
+	function clearFilters() {
+		filter = 'all';
+		when = 'any';
+		from = '';
+		to = '';
+	}
+
 	const products = $derived(library.history);
 	const kinds = $derived(products.map((p) => chipFor(p).kind));
 	const count = (kind: ChipKind) => kinds.filter((k) => k === kind).length;
@@ -40,7 +91,15 @@
 		{ value: count('caution'), label: GROUP_NAMES.caution, tone: 'caution' },
 		{ value: count('safety'), label: GROUP_NAMES.safety, tone: 'safety' }
 	]);
-	const shown = $derived(products.filter((_, index) => filter === 'all' || kinds[index] === filter));
+	const inDates = (product: (typeof products)[number]) => {
+		const time = library.timeOf(product);
+		// A report with no date is only in the list when no dates are asked for.
+		return time ? time >= range.start && time < range.end : !dated;
+	};
+	const shown = $derived(products.filter((product, index) => (filter === 'all' || kinds[index] === filter) && inDates(product)));
+	const noMatch = $derived(
+		filter === 'all' ? 'Nothing in your history falls in these dates.' : dated ? 'Nothing in your history has this result on these dates.' : 'Nothing in your history has this result.'
+	);
 
 	// Group the scans by the day they were checked.
 	const days = $derived.by(() => {
@@ -91,13 +150,33 @@
 				<ToggleGroupItem {value} aria-label={label}>{label}</ToggleGroupItem>
 			{/each}
 		</ToggleGroup>
+		<Select.Root type="single" bind:value={when}>
+			<Select.Trigger class="w-44" aria-label="Date: {whenLabel}">{whenLabel}</Select.Trigger>
+			<Select.Content>
+				{#each WHEN as [value, text] (value)}<Select.Item {value} label={text}>{text}</Select.Item>{/each}
+			</Select.Content>
+		</Select.Root>
 		<span class="text-muted-foreground ml-auto text-sm" aria-live="polite">{shown.length} result{shown.length === 1 ? '' : 's'}</span>
 	</div>
 
+	{#if when === 'custom'}
+		<div class="flex flex-wrap items-end gap-3">
+			<div class="grid gap-1.5">
+				<Label for="history-from">From</Label>
+				<Input id="history-from" type="date" class="w-44" bind:value={from} max={to || todayText} />
+			</div>
+			<div class="grid gap-1.5">
+				<Label for="history-to">To</Label>
+				<Input id="history-to" type="date" class="w-44" bind:value={to} min={from || undefined} max={todayText} />
+			</div>
+			{#if from || to}<Button variant="ghost" size="sm" onclick={() => { from = ''; to = ''; }}>Clear dates</Button>{/if}
+		</div>
+	{/if}
+
 	{#if !shown.length}
 		{#if products.length}
-			<EmptyState art="history" title="No scans match this filter" description="Nothing in your history has this verdict.">
-				{#snippet actions()}<Button variant="outline" onclick={() => (filter = 'all')}>Show all scans</Button>{/snippet}
+			<EmptyState art="history" title="No scans match these filters" description={noMatch}>
+				{#snippet actions()}<Button variant="outline" onclick={clearFilters}>Show all scans</Button>{/snippet}
 			</EmptyState>
 		{:else}
 			<EmptyState art="history" title="No scans yet" description="Check a product and it will be listed here, grouped by date.">

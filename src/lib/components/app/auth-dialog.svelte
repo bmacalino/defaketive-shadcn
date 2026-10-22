@@ -58,16 +58,15 @@
 			agree = false;
 			ui.authOpen = false;
 			await library.loadAccount();
-			toast(
-				signup
-					? `Welcome, ${firstName(me.user?.name)}. Your account is ready.`
-					: `Signed in as ${me.user?.name}.`
-			);
+			// A new account is greeted by the welcome tour instead (a notice here would sit over its buttons on a phone).
+			if (!signup) toast(`Signed in as ${me.user?.name}.`);
 			// From the landing page go to the app; otherwise stay where you were, or go where you were headed.
 			const here = page.url.pathname;
 			const next = ui.afterAuth || (here === '/' ? '/app/home' : here.startsWith('/scan') ? '/app/analyze' : '');
 			ui.afterAuth = '';
 			if (next && next !== here) await goto(next);
+			// A new account gets the welcome tour, on whatever page they are now.
+			if (signup) ui.tourOpen = true;
 		} catch (error) {
 			const failure = error as ApiError;
 			const fields = (failure.body?.fields ?? {}) as Record<string, string>;

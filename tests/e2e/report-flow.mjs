@@ -1,5 +1,5 @@
 // The report: the reviewers' quotes come first, the explanations last, and there is one clear next step
-// under the verdict for each of the four groups. Uses a made-up catalog in the browser only.
+// under the result for each of the four groups. Uses a made-up catalog in the browser only.
 import { chromium } from 'playwright-core';
 import fs from 'node:fs';
 import { signUp } from './_signin.mjs';
@@ -88,7 +88,7 @@ const settle = (page, ms = 1300) => page.waitForTimeout(ms);
 const url = (i, guest = false) => `${base}${guest ? '/scan' : '/app'}/report?link=${encodeURIComponent(fake[i].link)}`;
 async function go(page, i, guest = false) {
 	await page.goto(url(i, guest), { waitUntil: 'networkidle' });
-	await page.getByRole('group', { name: 'Verdict' }).waitFor({ timeout: 15000 });
+	await page.getByRole('group', { name: 'Result' }).waitFor({ timeout: 15000 });
 	await settle(page, 1500);
 }
 const nextSteps = async (page) => (await page.getByRole('group', { name: 'What to do next' }).getByRole('button').allInnerTexts()).map((t) => t.trim());
@@ -104,13 +104,13 @@ async function axe(page, label) {
 {
 	const { context, page, errors } = await open();
 
-	// ---- The order of the top of the report: name, verdict, next step, then the numbers ----
+	// ---- The order of the top of the report: name, result, next step, then the numbers ----
 	await go(page, 1);
 	const top = await page.evaluate(() => {
 		const after = (a, b) => Boolean(a && b) && Boolean(a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING);
 		const text = (el) => el?.textContent.replace(/\s+/g, ' ').trim() ?? '';
 		const name = document.querySelector('h1');
-		const box = document.querySelector('[aria-label="Verdict"]');
+		const box = document.querySelector('[aria-label="Result"]');
 		const next = document.querySelector('[aria-label="What to do next"]');
 		const numbers = [...document.querySelectorAll('dl')].find((dl) => dl.textContent.includes('Report date'));
 		const sample = [...document.querySelectorAll('p')].find((p) => /^We read /.test(p.textContent.trim()));
@@ -122,23 +122,24 @@ async function axe(page, label) {
 			terms: [...(numbers?.querySelectorAll('dt') ?? [])].map(text)
 		};
 	});
-	check(top.order && top.oneCard, 'the verdict comes right after the name; the next step and then the numbers follow, in one card');
+	check(top.order && top.oneCard, 'the result comes right after the name; the next step and then the numbers follow, in one card');
 	check(top.beside.includes('4.2/5') && top.beside.includes('Lazada PH · ₱499.00') && !top.beside.includes('out of 5'), `beside the name: the rating once, the marketplace and the price (${top.beside.slice(-40)})`);
-	check(top.terms.join(' | ') === 'Positive reviews | Negative reviews | Flagged reviews | Report date', `under the verdict: ${top.terms.join(' | ')}`);
+	check(top.terms.join(' | ') === 'Positive reviews | Negative reviews | Flagged reviews | Report date', `under the result: ${top.terms.join(' | ')}`);
 
 	// ---- The kinds of problem, most serious first, in two groups ----
 	const groups = await page.evaluate(() => [...document.querySelectorAll('#report-findings section')].map((section) => ({
 		title: section.querySelector('h3')?.textContent.trim(),
 		labels: [...section.querySelectorAll('.reveal > div:first-child > span.font-medium')].map((el) => el.textContent.trim())
 	})));
-	check(groups.length === 2 && groups[0].title === 'Can change the verdict' && groups[0].labels.join(' | ') === 'Safety problem | Faulty or broken | Possible fake', `first the three that can change the verdict (${groups[0]?.labels.join(' | ')})`);
-	check(groups[1]?.title === "Doesn't change the verdict" && groups[1].labels.join(' | ') === 'Poor quality | Not as advertised', `then the two that can't, under their own heading (${groups[1]?.labels.join(' | ')})`);
+	check(groups.length === 2 && groups[0].title === 'Can change the result' && groups[0].labels.join(' | ') === 'Safety problem | Faulty or broken | Possible fake', `first the three that can change the result (${groups[0]?.labels.join(' | ')})`);
+	check(groups[1]?.title === "Doesn't change the result" && groups[1].labels.join(' | ') === 'Poor quality | Not as advertised', `then the two that can't, under their own heading (${groups[1]?.labels.join(' | ')})`);
 
 	// ---- The order of the first tab ----
 	const titles = (await page.locator('[role="tabpanel"][data-state="active"] [data-slot="card-title"]').allInnerTexts()).map((t) => t.trim());
-	check(titles[0] === 'Each check, in their own words', `first card under the verdict is the reviewers' quotes (${titles[0]})`);
-	check(titles.indexOf('Review sentiment') === 1 && titles.at(-1) === 'How DeFaketive labels a product', 'then the numbers; the explanation of the labels is last');
-	check(titles.includes('Why you see reviews, not a score') && titles.indexOf('Why you see reviews, not a score') > titles.indexOf('Review sentiment'), '"Why you see reviews, not a score" sits below the quotes');
+	check(titles[0] === 'Review sentiment', `the chart comes first (${titles[0]})`);
+	check(titles[1] === 'How DeFaketive labels a product' && titles.at(-1) === 'Each check, in their own words', 'the labels sit beside the chart; the quotes from reviewers follow');
+	check(!titles.includes('Why you see reviews, not a score') && !(await page.getByText('Report summary').count()), 'the "How the check works" and "Report summary" cards are gone');
+	check((await page.getByRole('button', { name: 'View full detail' }).count()) === 0, 'the labels card has no full-detail dropdown');
 	check(!titles.includes('What the check looks for'), 'the card that repeated the counts is gone');
 	check(await page.getByText('Overheating, smoke, sparks or shocks').first().isVisible(), 'each kind of problem says what it covers');
 	await page.screenshot({ path: 'tests/e2e/shots/report_flow_mild.png', fullPage: true });
@@ -160,12 +161,12 @@ async function axe(page, label) {
 		const box = el?.getBoundingClientRect();
 		return { focused: document.activeElement === el, onScreen: Boolean(box) && box.top >= 0 && box.top < innerHeight };
 	});
-	check((await selectedTab(page)) === 'Summary' && guide.focused && guide.onScreen, '"What do these labels mean?" goes to the explanation at the bottom of the first tab');
+	check((await selectedTab(page)) === 'Summary' && guide.focused && guide.onScreen, '"What do these labels mean?" goes to the explanation at the top of the first tab');
 
 	// ---- Safety reports: flagged reviews, and similar products ----
 	await go(page, 0);
 	steps = await nextSteps(page);
-	check(steps.join(' | ') === 'Read the 2 flagged reviews | See 2 similar products with no warnings | What do these labels mean?', `Safety reports: next steps are "${steps.join(' | ')}"`);
+	check(steps.join(' | ') === 'See 2 similar products with no warnings | Read the 2 flagged reviews | What do these labels mean?', `Safety reports: similar products come first, then the flagged reviews ("${steps.join(' | ')}")`);
 	check((await page.getByRole('tab', { name: /Similar/ }).innerText()).replace(/\s+/g, ' ').trim() === 'Similar products · 2', 'the Similar tab shows its count when there are some');
 	await page.screenshot({ path: 'tests/e2e/shots/report_flow_serious.png' });
 	await page.getByRole('button', { name: 'See 2 similar products with no warnings' }).click();
@@ -173,18 +174,18 @@ async function axe(page, label) {
 	check((await selectedTab(page)).startsWith('Similar') && (await page.locator('[role="tabpanel"][data-state="active"] article').count()) === 2, 'it opens the Similar tab with the 2 products');
 	check((await page.locator('[role="tabpanel"][data-state="active"] article [data-slot="badge"]').first().innerText()).trim() === 'No warnings', 'each similar product carries the "No warnings" chip');
 
-	// ---- One safety mention under a "No warning signs found" verdict ----
+	// ---- One safety mention under a "No warning signs found" result ----
 	await go(page, 2);
 	const lifted = await page.evaluate(() => {
-		const box = document.querySelector('[aria-label="Verdict"]');
+		const box = document.querySelector('[aria-label="Result"]');
 		const note = [...document.querySelectorAll('p')].find((p) => p.textContent.includes('This product is shown as'));
 		return { sameCard: Boolean(note) && box.closest('[data-slot="card"]') === note.closest('[data-slot="card"]'), after: Boolean(note) && Boolean(box.compareDocumentPosition(note) & Node.DOCUMENT_POSITION_FOLLOWING), text: note?.textContent.replace(/\s+/g, ' ').trim() ?? '' };
 	});
-	check(lifted.sameCard && lifted.after && /shown as Caution because 1 review mentions a safety concern/.test(lifted.text), 'the note explaining an orange "Caution" sits directly under the verdict');
+	check(lifted.sameCard && lifted.after && /shown as Caution because 1 review mentions a safety concern/.test(lifted.text), 'the note explaining an orange "Caution" sits directly under the result');
 	steps = await nextSteps(page);
 	check(steps[0] === 'Read the flagged review', `Caution from one safety mention: next step is "${steps[0]}"`);
 	await page.screenshot({ path: 'tests/e2e/shots/report_flow_lifted.png' });
-	await axe(page, 'report with the note under the verdict');
+	await axe(page, 'report with the note under the result');
 
 	// ---- No warnings ----
 	await go(page, 3);
@@ -219,16 +220,16 @@ async function axe(page, label) {
 	await settle(page, 600);
 	check(await page.getByText('Showing 1 of 1 matching review.').isVisible(), 'a list with nothing to sort does not claim an order');
 
-	// ---- No verdict yet ----
+	// ---- No result yet ----
 	await go(page, 6);
 	steps = await nextSteps(page);
-	check(steps[0] === 'Read the reviews we have', `No verdict yet: "${steps[0]}"`);
+	check(steps[0] === 'Read the reviews we have', `No result yet: "${steps[0]}"`);
 	await go(page, 8);
 	steps = await nextSteps(page);
-	check(steps[0] === 'Read the flagged review', `No verdict yet, but one review reports a problem: "${steps[0]}"`);
+	check(steps[0] === 'Read the flagged review', `No result yet, but one review reports a problem: "${steps[0]}"`);
 	await go(page, 7);
 	steps = await nextSteps(page);
-	check(steps.join(' | ') === 'What do these labels mean?', 'No verdict yet and no stored reviews: only the labels link, no dead button');
+	check(steps.join(' | ') === 'What do these labels mean?', 'No result yet and no stored reviews: only the labels link, no dead button');
 	check((await page.locator('[data-behind-checker]').count()) === 0, 'a product that was never analysed gets no "earlier checker" note on top of "Not analyzed yet"');
 
 	// ---- A report made by an earlier version of the checker ----
@@ -239,11 +240,11 @@ async function axe(page, label) {
 		return {
 			text: note?.textContent.replace(/\s+/g, ' ').trim() ?? '',
 			href: note?.querySelector('a')?.getAttribute('href') ?? '',
-			placed: after(document.querySelector('[aria-label="Verdict"]'), note) && after(note, document.querySelector('[aria-label="What to do next"]'))
+			placed: after(document.querySelector('[aria-label="Result"]'), note) && after(note, document.querySelector('[aria-label="What to do next"]'))
 		};
 	});
 	check(older.text === 'This report was made with an earlier version of the checker. Check it again to bring it up to date.', `an older report says so (${older.text})`);
-	check(older.placed, 'the note sits under the verdict, before the next step');
+	check(older.placed, 'the note sits under the result, before the next step');
 	check(older.href === `/app/analyze?q=${encodeURIComponent(fake[10].link)}`, `"Check it again" leads to the check page with the link kept (${older.href})`);
 	await axe(page, 'report made by an earlier checker');
 	await go(page, 12);
@@ -265,7 +266,7 @@ async function axe(page, label) {
 	const { context, page } = await open({ signedIn: false });
 	await go(page, 0, true);
 	const steps = await nextSteps(page);
-	check(steps[0] === 'Read the 2 flagged reviews' && steps[1] === 'See 2 similar products with no warnings', 'guest report: the same next steps');
+	check(steps[0] === 'See 2 similar products with no warnings' && steps[1] === 'Read the 2 flagged reviews', 'guest report: the same next steps');
 	await page.getByRole('button', { name: 'See 2 similar products with no warnings' }).click();
 	await settle(page, 900);
 	const href = await page.locator('[role="tabpanel"][data-state="active"] article a', { hasText: 'Open report' }).first().getAttribute('href');
@@ -287,14 +288,14 @@ async function axe(page, label) {
 		await go(page, i);
 		check((await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth)) <= 1, `phone: report "${fake[i].name.replace(' power bank', '')}" does not scroll sideways`);
 	}
-	// On a phone the verdict must not need scrolling, even under a long product name.
+	// On a phone the result must not need scrolling, even under a long product name.
 	for (const i of [0, 9]) {
 		await go(page, i);
 		const box = await page.evaluate(() => {
-			const r = document.querySelector('[aria-label="Verdict"]').getBoundingClientRect();
+			const r = document.querySelector('[aria-label="Result"]').getBoundingClientRect();
 			return { top: Math.round(r.top), bottom: Math.round(r.bottom), screen: innerHeight, sideways: document.documentElement.scrollWidth - innerWidth };
 		});
-		check(box.top > 0 && box.bottom <= box.screen && box.sideways <= 1, `phone: the whole verdict is on the first screen${i === 9 ? ', under a long name too' : ''} (${box.top} to ${box.bottom} of ${box.screen})`);
+		check(box.top > 0 && box.bottom <= box.screen && box.sideways <= 1, `phone: the whole result is on the first screen${i === 9 ? ', under a long name too' : ''} (${box.top} to ${box.bottom} of ${box.screen})`);
 		await page.screenshot({ path: `tests/e2e/shots/report_flow_phone_first_screen_${i}.png` });
 	}
 	await go(page, 0);

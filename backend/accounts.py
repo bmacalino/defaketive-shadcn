@@ -119,7 +119,7 @@ def safe_link(value: Any) -> str:
 def _public(row: sqlite3.Row | None) -> dict[str, Any] | None:
     if row is None:
         return None
-    return {"id": int(row["id"]), "name": row["full_name"], "email": row["email"]}
+    return {"id": int(row["id"]), "name": row["full_name"], "email": row["email"], "created_at": row["created_at"]}
 
 
 def _clean_name(full_name: Any) -> str:

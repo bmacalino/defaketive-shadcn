@@ -20,7 +20,7 @@
 		<div class="mx-auto flex w-full max-w-6xl flex-wrap items-center justify-between gap-x-6 gap-y-1 text-xs">
 			<p class="text-muted-foreground">© 2026 DeFaketive · For academic use only</p>
 			<nav class="flex flex-wrap gap-x-4" aria-label="Footer">
-				<a class={link} href={inApp ? '/app/faq' : '/#faq'}>How verdicts work</a>
+				<a class={link} href={inApp ? '/app/faq' : '/#faq'}>How results work</a>
 				<a class={link} href={inApp ? '/app/about' : '/#about'}>About the team</a>
 				<a class={link} href="mailto:bmacalino_20ur2047@psu.edu.ph">Contact</a>
 				<button type="button" class={link} onclick={() => ui.openTerms('privacy')}>Privacy</button>
@@ -42,7 +42,7 @@
 				<div class="flex flex-col gap-2">
 					<span class="font-medium">Product</span>
 					<a class={link} href={analyzeHref}>Check a product</a>
-					<a class={link} href={inApp ? '/app/faq' : '/#faq'}>How verdicts work</a>
+					<a class={link} href={inApp ? '/app/faq' : '/#faq'}>How results work</a>
 				</div>
 				<div class="flex flex-col gap-2">
 					<span class="font-medium">About</span>

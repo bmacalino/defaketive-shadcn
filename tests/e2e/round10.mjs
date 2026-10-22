@@ -16,7 +16,7 @@ const pool = await (await fetch(`${base}/api/saved/products`)).json();
 const byName = (pattern) => pool.products.find((p) => pattern.test(p.name));
 const CLEAN = byName(/Type C Fast Charging/i);
 const CAUTION = byName(/DoubleShock/i);
-// A report read partly and not by star level, with too few reviews for a verdict and no warning. Saved Lazada
+// A report read partly and not by star level, with too few reviews for a result and no warning. Saved Lazada
 // products were all scanned again by star level on 12 Oct 2026, so this is a Temu one.
 const FEW = byName(/wireless earphones true wireless earphones/i);
 const report = (p, guest = false) => `${base}${guest ? '/scan' : '/app'}/report?link=${encodeURIComponent(p.link)}`;
@@ -33,7 +33,7 @@ async function open({ signedIn = true, width = 1280, height = 900, scheme = 'lig
 const settle = (page, ms = 1300) => page.waitForTimeout(ms);
 async function openReport(page, product, guest = false) {
 	await page.goto(report(product, guest), { waitUntil: 'networkidle' });
-	await page.getByRole('group', { name: 'Verdict' }).waitFor({ timeout: 15000 });
+	await page.getByRole('group', { name: 'Result' }).waitFor({ timeout: 15000 });
 	await settle(page, 1500);
 }
 const pageText = (page) => page.evaluate(() => document.body.innerText);
@@ -67,7 +67,7 @@ check(pool.products.every((p) => p.updated_at || p.analysis_date || p.analyzed_a
 	check(/\(adjusted\)/.test(text) && !/weighted/i.test(text) && !/coverage\)/.test(text), 'no "weighted" and no "coverage" left; the percentages say "(adjusted)"');
 	check(text.includes('We read extra low-star reviews on purpose, so the percentages are adjusted to reflect the whole listing.'), 'the sentiment card explains the adjustment in plain words');
 	check(text.includes('Mixed or unclear reviews') && !/\bUncertain\b/.test(text), 'sentiment says "Mixed or unclear", not "Uncertain"');
-	check((await page.getByText("Doesn't change the verdict").count()) === 1 && !text.includes('Informs only'), 'the two extra labels sit under one heading, "Doesn\'t change the verdict"');
+	check((await page.getByText("Doesn't change the result").count()) === 1 && !text.includes('Informs only'), 'the two extra labels sit under one heading, "Doesn\'t change the result"');
 	const reportDate = await page.evaluate(() => [...document.querySelectorAll('dl > div')].find((el) => el.querySelector('dt')?.textContent.trim() === 'Report date')?.querySelector('dd')?.textContent.trim() ?? '');
 	check(/^[A-Z][a-z]{2} \d{1,2}, \d{4}$/.test(reportDate), `the report shows its date (${reportDate})`);
 	await page.screenshot({ path: 'tests/e2e/shots/round10_report.png' });

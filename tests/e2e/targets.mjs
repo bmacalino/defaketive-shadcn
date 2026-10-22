@@ -123,11 +123,6 @@ async function audit(page, scene) {
 	await page.getByRole('heading', { level: 1 }).waitFor({ timeout: 15000 });
 	await settle(page, 1500);
 	await audit(page, 'report, first tab');
-	const detail = page.getByRole('button', { name: 'View full detail' });
-	if (await detail.count()) {
-		await detail.click();
-		await audit(page, 'report, full detail open');
-	}
 	await page.getByRole('tab', { name: /Reviews/ }).click();
 	await audit(page, 'report, Reviews tab');
 	await page.getByRole('button', { name: /^Filters/ }).click();

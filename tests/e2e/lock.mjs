@@ -1,7 +1,7 @@
 // The lock: everything under /app is for signed-in people. A guest never sees the app.
 import { chromium } from 'playwright-core';
 import fs from 'node:fs';
-import { PASSWORD } from './_signin.mjs';
+import { closeTour, PASSWORD } from './_signin.mjs';
 
 const base = process.env.BASE || 'http://localhost:5173';
 fs.mkdirSync('tests/e2e/shots', { recursive: true });
@@ -111,6 +111,7 @@ const signInPopup = (page) => page.getByRole('dialog').getByText('Sign in or cre
 	await page.locator('[data-slot="sidebar"]').first().waitFor({ state: 'attached', timeout: 10000 }).catch(() => {});
 	await page.getByRole('heading', { level: 1, name: /history/i }).waitFor({ timeout: 10000 }).catch(() => {});
 	check(await sawApp(page), 'after creating an account from the redirect, the page first asked for opens');
+	await closeTour(page);
 
 	// Signed in: every page opens, also straight from its address (a reload or a bookmark).
 	for (const route of ['/app/home', '/app/analyze', '/app/products', '/app/history', '/app/wishlist', '/app/settings', '/app/about', '/app/faq', `/app/report?link=${encodeURIComponent(SAVED.link)}`]) {

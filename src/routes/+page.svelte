@@ -32,7 +32,7 @@
 	const steps = [
 		['Paste link', 'Copy any gadget link from Lazada PH.'],
 		['We read the reviews', 'We collect the reviews and read every one, looking for words like peke, sira and umusok.'],
-		['Read the verdict', 'A plain verdict on safety, fakes and defects, with the exact reviews behind it.'],
+		['Read the result', 'A plain result on safety, fakes and defects, with the exact reviews behind it.'],
 		['Shop smarter', 'If reviewers report problems, compare similar products with no warnings.']
 	];
 	const platforms = ['Lazada PH'];

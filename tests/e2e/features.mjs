@@ -160,7 +160,7 @@ async function fresh(width, height, { fakeCatalog = false, empty = false } = {})
 	await name.hover();
 	await page.waitForTimeout(1100);
 	check(await page.getByText('Open the report to read every review.').isVisible(), 'resting on a product shows its preview');
-	check(await page.getByText('Reviewers report safety problems').nth(1).isVisible().catch(() => false) || (await page.getByText('Reviewers report safety problems').count()) > 0, 'the preview shows the verdict');
+	check(await page.getByText('Reviewers report safety problems').nth(1).isVisible().catch(() => false) || (await page.getByText('Reviewers report safety problems').count()) > 0, 'the preview shows the result');
 	await page.screenshot({ path: `${out}/feat_hovercard.png` });
 
 	// Photos: a product with no picture and one whose picture fails both show the calm tile.
@@ -193,7 +193,7 @@ async function fresh(width, height, { fakeCatalog = false, empty = false } = {})
 	await page.goto(base + '/app/products', { waitUntil: 'networkidle' });
 	await settle(page, 1200);
 	check(await page.getByRole('button', { name: /^Filters/ }).isVisible(), 'phone: Products has a Filters button');
-	check(!(await page.locator('#filter-platform').isVisible()), 'phone: the inline filters are hidden');
+	check(!(await page.locator('#filter-risk').isVisible()), 'phone: the inline filters are hidden');
 	await page.getByRole('button', { name: /^Filters/ }).click();
 	await page.getByRole('dialog').getByText('Filter products').waitFor();
 	await page.screenshot({ path: `${out}/feat_sheet_products.png` });

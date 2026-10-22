@@ -1,6 +1,7 @@
 // The guest screen: a guest checks a product without ever entering the main app.
 // The live scan is pretended; nothing touches a marketplace.
 import { chromium } from 'playwright-core';
+import { closeTour } from './_signin.mjs';
 import fs from 'node:fs';
 
 const base = process.env.BASE || 'http://localhost:5173';
@@ -78,15 +79,15 @@ async function axe(page, label) {
 	await page.waitForURL(/\/scan\/report\?link=/);
 	// Wait for the report itself: the address changes before the new page is drawn, and the guest screen's own
 	// heading is a level-1 heading too.
-	await page.locator('[aria-label="Verdict"]').waitFor({ timeout: 15000 });
+	await page.locator('[aria-label="Result"]').waitFor({ timeout: 15000 });
 	check((await inApp(page)) === 0, 'the report opens on the guest screen (no app menu)');
 	check(await page.getByText("You're viewing this as a guest").isVisible(), 'the guest report says what an account adds');
 	const noteAfterVerdict = await page.evaluate(() => {
-		const box = document.querySelector('[aria-label="Verdict"]');
+		const box = document.querySelector('[aria-label="Result"]');
 		const note = [...document.querySelectorAll('[data-slot="alert-title"]')].find((el) => el.textContent.includes("You're viewing this as a guest"));
 		return Boolean(box && note) && Boolean(box.compareDocumentPosition(note) & Node.DOCUMENT_POSITION_FOLLOWING);
 	});
-	check(noteAfterVerdict, 'the note about an account comes after the verdict, not before it');
+	check(noteAfterVerdict, 'the note about an account comes after the result, not before it');
 	await page.waitForTimeout(1200);
 	await page.screenshot({ path: 'tests/e2e/shots/guest_report.png' });
 	await axe(page, 'guest report');
@@ -135,6 +136,7 @@ async function axe(page, label) {
 	// The address changes a moment before the new page is drawn (pages cross-fade), so wait for the app itself.
 	await page.locator('[data-slot="sidebar"]').first().waitFor({ state: 'attached', timeout: 10000 }).catch(() => {});
 	check((await inApp(page)) > 0, 'after creating an account from the guest report, the same report opens in the app');
+	await closeTour(page);
 	await page.waitForTimeout(1200);
 	const lib = await page.evaluate(() => fetch('/api/me/library').then((r) => r.json()));
 	check(Boolean(lib.activity[NEW_LINK]), 'the guest scan moved into the new account\'s history');

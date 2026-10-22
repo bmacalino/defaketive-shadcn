@@ -26,19 +26,6 @@ class Catalog {
 	/** The products shown on the Products page: the last search, or the whole catalog. */
 	results = $state<Product[]>([]);
 
-	/** Checked products with enough reviews and nothing flagged (the original app's own list). */
-	picks = $state<Product[]>([]);
-	/** The same idea, picked from the whole database when we have it. */
-	suggestions = $derived(
-		this.all.length
-			? this.all
-					.filter((product) => product.badge_view?.state === 'no_warning_signs')
-					.sort((a, b) => (b.badge_view?.reviews_analyzed ?? 0) - (a.badge_view?.reviews_analyzed ?? 0))
-					.slice(0, 12)
-			: this.picks
-	);
-	/** Products other users saved most, with how many saved them. */
-	popular = $state<{ product: Product; saves: number }[]>([]);
 	/** Real totals from the server's database, for the landing and sign-in pages. */
 	stats = $state<{ products: number; reviews: number; marketplaces: number } | null>(null);
 	/** True when those totals could not be fetched, so the page leaves the strip out instead of waiting forever. */
@@ -83,17 +70,6 @@ class Catalog {
 	lookup(link: string): Product | undefined {
 		const identity = linkIdentity(link);
 		return identity ? this.browse.find((product) => linkIdentity(product.link) === identity) : undefined;
-	}
-
-	async loadExtras() {
-		const [picks, popular] = await Promise.all([
-			api<{ products: Product[] }>('/api/picks').catch(() => null),
-			api<{ products: { product: Product; saves: number }[] }>('/api/saved/popular').catch(() =>
-				api<{ products: { product: Product; saves: number }[] }>('/api/wishlist/popular').catch(() => null)
-			)
-		]);
-		if (picks) this.picks = Array.isArray(picks.products) ? picks.products : [];
-		if (popular) this.popular = Array.isArray(popular.products) ? popular.products : [];
 	}
 
 	async loadStats() {

@@ -18,6 +18,9 @@ class Ui {
 	termsOpen = $state(false);
 	termsSection = $state<'terms' | 'privacy'>('terms');
 
+	/** The welcome tour: opens by itself right after an account is created; Settings and Ctrl+K open it again. */
+	tourOpen = $state(false);
+
 	openAuth(kind: 'signin' | 'signup' = 'signin', notice = '', after = '') {
 		this.authKind = kind;
 		this.authNotice = notice;

@@ -15,10 +15,9 @@
 	import { Button } from '#lib/components/ui/button/index.js';
 	import { Label } from '#lib/components/ui/label/index.js';
 	import * as Select from '#lib/components/ui/select/index.js';
-	import { byConcern, GROUP_NAMES, matchesConcern, platformName, reviewCount, type ConcernFilter } from '#lib/product.js';
+	import { byConcern, GROUP_NAMES, matchesConcern, reviewCount, type ConcernFilter } from '#lib/product.js';
 	import { catalog } from '#lib/stores/catalog.svelte.js';
 
-	let platform = $state('all');
 	let concern = $state<ConcernFilter>('all');
 	let sort = $state<'fewest' | 'most' | 'reviews'>('fewest');
 	// Search by name, as you type. Check a product sends a typed name here (?q=), and the address keeps the
@@ -43,12 +42,6 @@
 		});
 	});
 
-	// The marketplaces the saved reports come from. New checks are Lazada PH only, but reports saved earlier from
-	// another marketplace stay in the list, and can be picked out here.
-	const platforms = $derived([
-		['all', 'All marketplaces'],
-		...[...new Set(catalog.browse.map((product) => platformName(product)))].sort().map((name) => [name, name])
-	]);
 	// The same four group names as everywhere else, plus both warning groups together.
 	const concerns: [ConcernFilter, string][] = [
 		['all', 'All products'],
@@ -69,18 +62,17 @@
 	const source = $derived(searching ? catalog.results : catalog.browse);
 	const filtered = $derived(
 		source
-			.filter((p) => (platform === 'all' || platformName(p) === platform) && matchesConcern(p, concern) && named(p))
+			.filter((p) => matchesConcern(p, concern) && named(p))
 			.sort((a, b) =>
 				sort === 'reviews' ? reviewCount(b) - reviewCount(a) : sort === 'most' ? byConcern(a, b) : byConcern(b, a)
 			)
 	);
-	const filtering = $derived(platform !== 'all' || concern !== 'all' || terms.length > 0);
-	const activeFilters = $derived((platform !== 'all' ? 1 : 0) + (concern !== 'all' ? 1 : 0) + (sort !== 'fewest' ? 1 : 0));
+	const filtering = $derived(concern !== 'all' || terms.length > 0);
+	const activeFilters = $derived((concern !== 'all' ? 1 : 0) + (sort !== 'fewest' ? 1 : 0));
 	let filtersOpen = $state(false);
 	const label = (list: string[][] | [string, string][], value: string) => list.find(([v]) => v === value)?.[1] ?? '';
 
 	function clearFilters() {
-		platform = 'all';
 		concern = 'all';
 		search = '';
 	}
@@ -96,15 +88,6 @@
 </header>
 
 {#snippet filterControls(suffix: string)}
-	<div class="grid gap-1.5">
-		<Label for="filter-platform{suffix}">Marketplace</Label>
-		<Select.Root type="single" bind:value={platform}>
-			<Select.Trigger id="filter-platform{suffix}" class="w-full sm:w-48">{label(platforms, platform)}</Select.Trigger>
-			<Select.Content>
-				{#each platforms as [value, text] (value)}<Select.Item {value} label={text}>{text}</Select.Item>{/each}
-			</Select.Content>
-		</Select.Root>
-	</div>
 	<div class="grid gap-1.5">
 		<Label for="filter-risk{suffix}">Show</Label>
 		<Select.Root type="single" bind:value={concern}>
@@ -184,7 +167,7 @@
 	<ProductGrid products={filtered} />
 {:else}
 	{#if filtering && source.length}
-		<EmptyState art="search" title="No products match these filters" description="Try another marketplace or verdict.">
+		<EmptyState art="search" title="No products match these filters" description="Try another result.">
 			{#snippet actions()}<Button variant="outline" onclick={clearFilters}>Clear filters</Button>{/snippet}
 		</EmptyState>
 	{:else if catalog.error && !catalog.modelUnavailable}

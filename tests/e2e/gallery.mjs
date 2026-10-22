@@ -1,4 +1,4 @@
-// Show every verdict state in the new app using a made-up catalog that exists only in the browser
+// Show every result state in the new app using a made-up catalog that exists only in the browser
 // (the real server is never changed). Also checks every page for sideways scrolling on a phone.
 import { chromium } from 'playwright-core';
 import { signUp } from './_signin.mjs';
@@ -23,7 +23,7 @@ const states = [
 	['possible_counterfeit_or_defect', 'moderate', 'Reviewers report fakes or defects', { safety: 0, defect: 6, counterfeit: 3 }, 'Of 40 reviews, 6 say it is faulty; 3 say it may not be genuine. Read them below and judge for yourself.'],
 	['reviews_may_be_unreliable', 'unknown', 'These reviews may not be trustworthy', { safety: 0, defect: 0, counterfeit: 0 }, 'Many reviews look duplicated or generic.'],
 	['no_warning_signs', 'low', 'No warning signs found', { safety: 0, defect: 0, counterfeit: 0 }, 'Enough reviews, none flagged.'],
-	['insufficient_evidence', 'unknown', 'Not enough reviews to judge', { safety: 1, defect: 0, counterfeit: 0 }, 'Too few reviews for an overall verdict. Even so, 1 review mentions smoke. Read it below.']
+	['insufficient_evidence', 'unknown', 'Not enough reviews to judge', { safety: 1, defect: 0, counterfeit: 0 }, 'Too few reviews for an overall result. Even so, 1 review mentions smoke. Read it below.']
 ];
 
 const products = states.map(([state, tone, headline, counts, detail], i) => ({
@@ -92,8 +92,6 @@ context.on('console', __warn);
 	page.on('response', (r) => r.status() >= 400 && !r.url().includes('/api/auth') && problems.push(`[${r.status()}] ${r.url()}`));
 	await page.route('**/api/products', (route) => route.fulfill({ json: { products, count: products.length } }));
 	await page.route('**/api/saved/products', (route) => route.fulfill({ json: { products, count: products.length } }));
-	await page.route('**/api/picks', (route) => route.fulfill({ json: { products: [products[4]] } }));
-	await page.route('**/api/wishlist/popular', (route) => route.fulfill({ json: { products: [{ product: products[4], saves: 3 }, { product: products[0], saves: 1 }] } }));
 	await page.route('**/api/products/detail**', (route) => {
 		const link = new URL(route.request().url()).searchParams.get('link');
 		const p = products.find((x) => x.link === link);

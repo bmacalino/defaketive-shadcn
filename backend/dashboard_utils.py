@@ -472,7 +472,7 @@ def product_rows(products: list[dict[str, Any]]) -> list[dict[str, Any]]:
                 "Total ratings": int(product.get("total_rating") or 0),
                 "Location": product.get("location", ""),
                 "Platform": platform_name(product),
-                "Verdict": view["headline"],
+                "Result": view["headline"],
                 "Reviews analyzed": view["reviews_analyzed"],
                 "Safety reports": view["counts"]["safety"],
                 "Faulty or broken reports": view["counts"]["defect"],
@@ -775,8 +775,10 @@ def _verdict_detail(state: str, verdict: dict[str, Any], badges: list[dict[str, 
         "possible_safety_issue",
         "possible_counterfeit_or_defect",
     }:
-        clauses = "; ".join(f"{badge['mentions']} {badge['phrase']}" for badge in reported)
-        return f"Of {_reviews(usable)}, {clauses}. Read them below and judge for yourself."
+        # One line, for the most serious thing found; every kind of problem has its own card below the result.
+        deciding = [badge for badge in reported if badge["category"] in {"safety", "defect", "counterfeit"}]
+        lead = (deciding or reported)[0]
+        return f"{lead['mentions']} of {_reviews(usable)} {lead['phrase']}."
     detail = str(verdict.get("detail") or "").strip().rstrip(".")
     if state == "insufficient_evidence" and reported:
         # Too few reviews for an overall judgement must not hide what the few

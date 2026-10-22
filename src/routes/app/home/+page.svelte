@@ -60,7 +60,7 @@
 	const steps = [
 		['Paste a link', 'Copy any product link from Lazada PH and paste it into the bar above.'],
 		['We read the reviews', 'A Filipino-aware language model reads each review and looks for reports of fakes, defects and safety problems.'],
-		['Get your result', "A plain verdict (no warnings, caution, or safety reports) with the reviewers' own words."]
+		['Get your result', "No warnings, caution, or safety reports, with the reviewers' own words."]
 	];
 	const tips = [
 		['Check seller ratings first', 'Prefer sellers with high ratings and many completed orders before buying electronics.'],
@@ -105,7 +105,7 @@
 	{/if}
 
 	<!-- What to look at first, beside the overall picture. On a phone they stack, this one on top. -->
-	<div class="grid items-start gap-4 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
+	<div class="grid gap-4 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
 		<Card class="gap-0 pb-0" aria-labelledby="attention-title">
 			<CardHeader class="pb-4">
 				<h2 id="attention-title" class="flex items-center gap-2 text-base leading-snug font-semibold">
@@ -128,7 +128,7 @@
 						<ProductRowItem {product} />
 					{/each}
 				</div>
-				<div class="flex flex-wrap items-center gap-2 border-t p-4">
+				<div class="mt-auto flex flex-wrap items-center gap-2 border-t p-4">
 					<span class="text-muted-foreground text-sm">See all:</span>
 					{#if safety.length}
 						<Button size="sm" variant="outline" href="/app/history?filter=safety">{GROUP_NAMES.safety} · {safety.length}</Button>
@@ -151,8 +151,11 @@
 
 		<Card aria-label="Overview of your checked products">
 			<CardHeader><CardTitle>Overview</CardTitle></CardHeader>
-			<CardContent class="space-y-4">
-				{#if !library.ready}<ChartSkeleton />{:else}<OverviewChart {groups} total={products.length} />{/if}
+			<CardContent class="flex flex-1 flex-col gap-4">
+				<!-- Both cards are the same height: the chart sits in the middle, the note stays at the bottom. -->
+				<div class="my-auto">
+					{#if !library.ready}<ChartSkeleton />{:else}<OverviewChart {groups} total={products.length} />{/if}
+				</div>
 				<p class="text-muted-foreground text-xs">
 					{products.length ? `Based on ${products.length} product${products.length === 1 ? '' : 's'} ${where}.` : 'Check a product to see your overview.'}
 				</p>

@@ -5,7 +5,7 @@ Lucide icons, the plain **neutral** look with one brand colour, purple). The ori
 `../Capstone-Version-Control-Version-1.1` is not touched.
 
 This app only draws the screens. Everything real still happens in the original Flask app: accounts, guest
-scan limits, live scans, the review checker, and the exact wording of every verdict. The new app asks it
+scan limits, live scans, the review checker, and the exact wording of every result. The new app asks it
 for data through `/api`, so both always agree.
 
 ## Run it on another PC
@@ -56,7 +56,7 @@ browser  ->  Vite (localhost:5173)  --/api-->  server.py (127.0.0.1:5000)  ->  d
   only in `defaketive.db` (for example one somebody else scanned) could not be browsed or opened. `server.py` imports
   the original app (it is not edited) and adds two read-only routes that read the same database:
   `GET /api/saved/products` (every analyzed listing, as cards), `GET /api/saved/detail?link=` (one product with
-  all its reviews and its similar products) and `GET /api/saved/popular` (products saved by two or more accounts). The Products page, Ctrl+K search, name and link lookups on Analyze and wishlist suggestions
+  all its reviews and its similar products) and `GET /api/saved/popular` (products saved by two or more accounts). The Products page, Ctrl+K search, name and link lookups on Analyze
   all use them.
 - **`saved_pool.py`.** Every list, report and set of similar products is built from all the saved products, and
   reading them from the database means parsing each one with all its reviews. With 27 products nobody noticed; with
@@ -82,7 +82,8 @@ browser  ->  Vite (localhost:5173)  --/api-->  server.py (127.0.0.1:5000)  ->  d
 - **Lazada PH only** (the owner's decision, 14 Oct 2026). Every page says Lazada PH, and only a Lazada PH link can be
   checked (`SCAN_MARKETPLACES` and `scannable` in `src/lib/product.ts`; the server refuses the rest too). A Shopee or
   Temu link gets "DeFaketive checks Lazada PH products only"; if a report was saved from it before, that report still
-  opens, with no "Check again". Products filters by the marketplaces the saved reports come from.
+  opens, with no "Check again". Products has no marketplace filter (22 Oct 2026): the app is Lazada only, and
+  older Shopee or Temu reports simply stay in the list.
 - **One listing, one entry.** Shopee and Lazada links are matched by host and path. Temu gives every product the same
   path (`/goods.html`), so its `goods_id` is part of the match. (The original's own matching ignores it, which makes
   every Temu listing look like the same product.)
@@ -183,11 +184,13 @@ so a rented server needs 2 GB.
 | `/app/home` | Home, a dashboard: link box, latest scan, your numbers, **what needs a look** beside the overview, then recently checked |
 | `/app/analyze` | "Check a product": paste a link or search by name, start a live scan |
 | `/app/products` | Every product anyone has checked, with filters |
-| `/app/report?link=…` | One product's report: verdict, checks, quotes, every review |
-| `/app/history` | Scan history, grouped by day |
-| `/app/wishlist` | Saved products, picks with no warning signs, most saved |
+| `/app/report?link=…` | One product's report: result, checks, quotes, every review |
+| `/app/history` | Scan history, grouped by day; filter by result and by date (any time, today, last 7 or 30 days, or a chosen range) |
+| `/app/wishlist` | Saved products |
 | `/app/settings` | Account, scan alerts, dark mode, clipboard fill, clear history, delete account |
-| `/app/about`, `/app/faq` | About the project, questions, how verdicts work |
+| `/app/about`, `/app/faq` | About the project, questions, how results work |
+| `/app/agency` | **Agency view** (partner agency accounts only): watch list with status, notes and a spreadsheet download; Overview charts; sellers with several flagged listings |
+| `/app/agency/evidence?link=…` | One listing's evidence sheet, to print or save as a PDF |
 
 Sign-in and sign-up are pop-ups that open from anywhere.
 
@@ -216,10 +219,82 @@ server, which only ever returns an account's history and wishlist to that accoun
 (`/api/saved/...`) are open on purpose: they hold no personal data, and the guest screen needs them to recognise a
 product that was already checked and to show its report.
 
+### The agency view: for a partner government office
+
+Built for the **DTI** (Department of Trade and Industry): its E-Commerce Bureau, which can order an online listing
+taken down when it threatens public safety (Internet Transactions Act, RA 11967), and its Bureau of Philippine
+Standards. Lazada shop owners were ruled out on purpose. In the thesis the DTI is a user the system is designed for;
+for a demonstration, a teammate or the adviser plays the role.
+
+**Who can open it.** Only accounts the team marks, on the server PC. Signing up never gives access (it takes seconds
+and checks nothing), and the server checks every agency request (`agency_api.py`, `/api/agency/*`): a guest gets 401,
+any other account 403.
+
+```
+..\Capstone-Version-Control-Version-1.1\.venv\Scripts\python.exe scripts\agency_accounts.py add --email name@dti.gov.ph --name "Full Name"
+..\Capstone-Version-Control-Version-1.1\.venv\Scripts\python.exe scripts\agency_accounts.py add --email someone@example.com
+..\Capstone-Version-Control-Version-1.1\.venv\Scripts\python.exe scripts\agency_accounts.py list
+..\Capstone-Version-Control-Version-1.1\.venv\Scripts\python.exe scripts\agency_accounts.py remove --email name@dti.gov.ph
+```
+
+`add` with a new email makes the account and prints its password once (hand it over separately; they change it in
+Settings); with an existing account's email it only gives access. `remove` takes access back and keeps the account.
+Access is kept in `agency_members` in `accounts.db`; deleting the account removes it.
+
+**Get started.** An agency account never signs up, so it never sees the shoppers' welcome tour. Its own five-step
+guide (`src/lib/components/agency/agency-guide.svelte`: welcome, set your own password, the watch list, evidence
+sheets, Overview and Sellers) opens by itself the first time the account opens the app, until it is closed once; the
+server remembers that (`agency_guide`, `POST /api/agency/guide`), so it does not open again on another computer.
+"Get started" on the DTI view, Settings and Ctrl+K open it again. Its password step opens `/app/settings?edit=1`,
+the Edit account pop-up.
+
+**What it shows.** Nothing that is not already in the saved reports, arranged for the office, in three tabs:
+
+- **Watch list**: Lazada listings at the red "Safety reports" level, or with safety mentions below it; newest report
+  first, two quotes each; a filter by the account's own status; **Download spreadsheet** (`/api/agency/watch.csv`, the
+  level shown, with the account's status and note; UTF-8 with a byte-order mark so Excel shows ₱; a cell starting
+  with `= + - @` gets a leading `'` so it can never run as a formula).
+- **Overview**: four charts, each with a one-line takeaway, a note on what it does NOT show, and (except the first)
+  "Show the numbers": listings by product kind and by price band (red reports / orange mentions / grey neither, the
+  verdict colours, never the brand purple), safety quotes by kind of hazard and safety reviews by year (grey). Then
+  every kind in a table. Counts, never percentages: most groups are small. The bars are plain HTML
+  (`src/lib/components/agency/`) so long labels wrap on a phone and the page prints.
+- **Sellers**: sellers with two or more flagged listings, grouped by the name Lazada shows (not a checked identity,
+  and the page says so), each with its flagged listings linking to their evidence sheets.
+
+An **evidence sheet** per listing gives the link, seller, price, report date, reviews read, the result, and every
+review the report counts as a safety report (stars, date, variation, the matched sentences, the full text), newest
+first. Reviewers' names never leave the server, and the view shows nothing about anyone's account.
+
+**Status and notes.** Each agency account can give a listing a status (Looking into it / Referred / No action) and a
+private note (up to 2,000 characters) on the watch list or the sheet (`PUT /api/agency/case`, table `agency_cases`).
+Only that account sees them; they are never printed.
+
+**"Not a safety problem".** Under each quote on the sheet, an agency account can say the check got that sentence wrong
+(for example song lyrics with "burned" in them), with an optional reason (`/api/agency/feedback`, table
+`agency_feedback`; only a sentence the report itself counts can be marked). It changes nothing in the report or its
+counts: it is feedback for the team's next checker round. To read them:
+
+```
+..\Capstone-Version-Control-Version-1.1\.venv\Scripts\python.exe scripts\agency_feedback.py
+..\Capstone-Version-Control-Version-1.1\.venv\Scripts\python.exe scripts\agency_feedback.py --csv agency-feedback.csv
+```
+
+Each mark says which office made it, never which person.
+
+**New.** A listing is new until this agency account opens its evidence sheet or presses "Mark all as seen"
+(`agency_seen`). It does not come from report dates, so re-checking every saved report never makes old listings look
+new. The menu item shows how many red-level listings are new.
+
+**How it words things.** Every screen and sheet carries the server's note that these are leads to look into, not
+findings, and the safety check's measured accuracy; every result is the server's own headline. The sheet says it is
+a student project and not an official finding of the DTI or of Lazada. Printing leaves out the menu, the top bar,
+the buttons, the status and the note, and prints in the light theme.
+
 ## Wording rules (kept from the original)
 
-- The server words every verdict and label. This app never writes its own verdict.
-- A verdict says what reviewers **report**. It never says a product is safe or unsafe, and there is no score.
+- The server words every result and label. This app never writes its own result.
+- A result says what reviewers **report**. It never says a product is safe or unsafe, and there is no score.
 - **Three words, one meaning each.** You **check** a product (every button, menu item and page title says "Check").
   A **scan** is the work a check starts when the product is new: it collects fresh reviews, it is what runs, and it is
   what is counted ("3 free scans"). What you get is a **report**. The app does not say "analyze" for what a person
@@ -234,29 +309,29 @@ product that was already checked and to show its report.
   panel, the Home card and a notice then say "This scan needs you" with the server's instructions, and go back to
   normal when the scan moves on. Checked in `tests/e2e/scan-flow.mjs`, in light and in dark.
 - **Four groups, one name each**, used everywhere a group is named: chips on cards, filters, numbers, charts and the
-  legend. The names live in one place, `GROUP_NAMES` in `src/lib/product.ts`. The sentence under a chip (the verdict
+  legend. The names live in one place, `GROUP_NAMES` in `src/lib/product.ts`. The sentence under a chip (the result
   headline, such as "No warning signs found") is the server's and says why.
-- Colour is never the only signal: every verdict chip also has an icon (a different shape for each group) and a word.
-- **One brand colour, purple, and it never means a verdict.** It is on the logo dot, the main buttons, links, switches,
+- Colour is never the only signal: every result chip also has an icon (a different shape for each group) and a word.
+- **One brand colour, purple, and it never means a result.** It is on the logo dot, the main buttons, links, switches,
   the scan progress and the focus ring, and nowhere else. Anything that counts reviews (the bars on a report) or shows
-  a verdict keeps its own colour. It is defined once, as `--brand` in `src/routes/layout.css` (a lighter purple in
+  a result keeps its own colour. It is defined once, as `--brand` in `src/routes/layout.css` (a lighter purple in
   dark mode), and `--primary` points at it. Purple was chosen by test, not by taste: `npm run check:colors` checks
   that it reads 4.5:1 or better as a button and as a link on every background, and that it stays clearly apart from
-  each of the four verdict colours, also for colour blindness. Bright blue failed that test (too close to teal).
-- Everything else is plain black and white on purpose, so colour always means something. Four verdict colours, used the
+  each of the four result colours, also for colour blindness. Bright blue failed that test (too close to teal).
+- Everything else is plain black and white on purpose, so colour always means something. Four result colours, used the
   same way in chips, banners, charts and dots:
 
   | Group | Colour | Icon | When |
   | --- | --- | --- | --- |
   | Safety reports | red | triangle with !  | The checker's serious level only: serious or repeated reports of fire, smoke, shocks or overheating |
-  | Caution | orange | circle with !  | Fakes or defects reported more than usual, a milder safety verdict, **or any other safety mention, even one** |
+  | Caution | orange | circle with !  | Fakes or defects reported more than usual, a milder safety result, **or any other safety mention, even one** |
   | No warnings | teal | tick in a circle | Enough reviews, no safety mention, nothing else at a warning level |
-  | No verdict yet | grey | circle with ? | Too few reviews, reviews that may not be trustworthy, or not analyzed yet |
+  | No result yet | grey | circle with ? | Too few reviews, reviews that may not be trustworthy, or not analyzed yet |
 
   The colour follows the level the checker decided (`chipFor` in `src/lib/product.ts`). Red is never used for a single
   or mild safety mention: that product is orange, its "Safety problem · 1" count is orange, and the report says in one
   line why it is shown as Caution. A safety mention is never hidden either: it always lifts a product out of
-  "No warnings" and "No verdict yet". The words the check matched are highlighted in amber, not red. (The original app
+  "No warnings" and "No result yet". The words the check matched are highlighted in amber, not red. (The original app
   still shows any safety mention in red; the two versions differ here on purpose.)
 
   "No warnings" is teal, not bright green, so it never reads as an approval stamp. Words on a coloured tint are always
@@ -273,26 +348,28 @@ One component draws it for the app and for the guest screen (`src/lib/components
 The order is: which product, the answer, what to do about it, then the proof.
 
 1. **Which product:** a small photo, the name, its stars, marketplace and price. Kept short on purpose, so that the
-   verdict is on the first screen of a phone even under a long name.
-2. **The verdict**, biggest thing on the page. If a product is orange only because one review mentions a safety
-   concern, a one-line note right under the verdict says so.
-3. **One next step** under it, chosen by the verdict: read the flagged reviews (and see similar products with no
-   warnings, when there are any) for Caution and Safety reports; read the flagged, negative or all reviews for
-   No warnings; read the flagged reviews, or the reviews we have, for No verdict yet. "What do these labels mean?"
+   result is on the first screen of a phone even under a long name.
+2. **The result**, biggest thing on the page: the label, a headline, and one short line about the most serious thing
+   reviewers reported (the server words it; every kind of problem has its own card on the first tab). If a product is
+   orange only because one review mentions a safety concern, a one-line note right under the result says so.
+3. **One next step** under it, chosen by the result: for Caution and Safety reports, see similar products with no
+   warnings first (when there are any, as the main button), then read the flagged reviews; read the flagged, negative or all reviews for
+   No warnings; read the flagged reviews, or the reviews we have, for No result yet. "What do these labels mean?"
    jumps to the legend.
-4. **The numbers behind it**, in the same card but below the verdict: positive and negative reviews, category, report
+4. **The numbers behind it**, in the same card but below the result: positive and negative reviews, category, report
    date and the sentence about how many reviews were read. On the guest screen, the note about what an account adds
-   comes after this card, never above the verdict.
-5. **First tab:** the reviewers' own words first ("What reviewers reported", one block per kind of problem), then the
-   sentiment and the short summary, and last the legend of the four groups. The kinds of problem are in two groups,
-   most serious first: "Can change the verdict" (Safety problem, Faulty or broken, Possible fake), then "Doesn't
-   change the verdict" (Poor quality, Not as advertised). The order lives in `CATEGORY_ORDER` in `src/lib/product.ts`.
+   comes after this card, never above the result.
+5. **First tab:** the sentiment chart and, beside it, the short legend of the four groups (with one line on how
+   accurate the check was in testing), then the reviewers' own words ("What reviewers reported", one block per kind of
+   problem). The kinds of problem are in two groups,
+   most serious first: "Can change the result" (Safety problem, Faulty or broken, Possible fake), then "Doesn't
+   change the result" (Poor quality, Not as advertised). The order lives in `CATEGORY_ORDER` in `src/lib/product.ts`.
 6. The tabs are **Summary**, **Reviews** (every review, with filters) and **Similar products** (the count shows only
    when there are some). The list of reviews uses the same order, so a safety report is at the top and not under
    seventy other reviews; the line above the list then says "most serious first".
 
 Small wording rules on a report: sentiment is "Positive", "Negative" or "Mixed or unclear"; the labels that are
-counted but do not affect the verdict sit under one heading, "Doesn't change the verdict"; the button that leaves for the listing names where
+counted but do not affect the result sit under one heading, "Doesn't change the result"; the button that leaves for the listing names where
 it goes ("View on Lazada"); the line about the sample is a sentence ("We read 15 of this listing's 4,048 reviews.");
 and when extra low-star reviews were read on purpose, the percentages are called "adjusted", with one sentence saying
 why. The report date comes from when the report was last saved (`server.py` passes it along).
@@ -324,11 +401,11 @@ include it. The one exception is a link inside a sentence.
 
 A saved report is shown as it was stored: it does not change when the checker does. Two kinds fall behind. A report
 in a format the app no longer reads shows "Not analyzed yet". A report in today's format made by an earlier version
-of the checker is still shown, with one grey line under the verdict ("This report was made with an earlier version of
+of the checker is still shown, with one grey line under the result ("This report was made with an earlier version of
 the checker", `behindChecker` in `src/lib/product.ts`; `server.py` adds `checked_with_current` to what it sends), and
 `start.cmd` says so when it starts. Run the re-check after any change to the checker.
 
-`scripts/recheck_products.py` re-reads the reviews already stored for both kinds and saves a verdict from the current
+`scripts/recheck_products.py` re-reads the reviews already stored for both kinds and saves a result from the current
 checker. It asks the original app what "current" means (`analysis_is_current`), uses the original app's own
 functions, edits none of its code, and contacts no marketplace. Close both apps first, then run it with the
 original's Python from this folder:
@@ -386,7 +463,7 @@ Only to keep text readable (WCAG AA, checked with axe on every page, in light an
 - `--muted-foreground` is `oklch(0.5 0 0)` instead of `0.556` (4.3:1 on `muted` was just under AA).
 - Red text on a pale red tint read 4.0:1, so `--destructive-ink` and `--destructive-soft` are used for the
   destructive Button, Badge and Alert and for the safety chips.
-- `--warning`, `--success`, `--unknown` (and their `-soft` tints) are new, for the verdict colours above, and `--destructive` is a little darker than stock so red text on white passes with room to spare.
+- `--warning`, `--success`, `--unknown` (and their `-soft` tints) are new, for the result colours above, and `--destructive` is a little darker than stock so red text on white passes with room to spare.
 
 And one change for looks: `--brand` (purple) is new, and `--primary`, `--sidebar-primary` and `--ring` use it instead of
 stock black and grey. The two Progress bars that count reviews are given `bg-foreground`, so they stay plain.
@@ -395,21 +472,22 @@ The dark theme, radius, Inter font and every other token are the shadcn-svelte d
 
 ## Charts and motion
 
-- Charts use shadcn-svelte's chart component (layerchart): the sentiment donut on a report, the verdict-group donut
-  on Home, and scans per day on History. Each has a text version for screen readers. (Home used to compare
+- Charts use shadcn-svelte's chart component (layerchart): the sentiment donut on a report, the result-group donut
+  on Home, and products checked per day on History (from the day the account was created: at least 14 slots, so a new account
+  gets thin bars that fill in day by day, and at most the last 30 days). Each has a text version for screen readers. (Home used to compare
   marketplaces too. That chart is gone: a handful of checked products cannot support such a comparison.)
 - Loading shows skeletons shaped like the real thing (cards, rows, number tiles, a whole report).
 - Empty screens share one look (`empty-state.svelte` with a small line drawing from `empty-art.svelte`).
 - Motion (all in `src/routes/layout.css`, all switched off for people who ask their device for less motion):
   cards rise in one after another (`.reveal`), numbers count up (`count-up.svelte`), page changes cross-fade
   (View Transitions, set up in `src/routes/+layout.svelte`), the live scan shows a stepper and a bar with a light sweep
-  (`scan-progress.svelte`), and a report's verdict settles in step by step (`verdict-block.svelte`).
+  (`scan-progress.svelte`), and a report's result settles in step by step (`verdict-block.svelte`).
 
 ## Shortcuts, previews and phone touches
 
 - **Ctrl+K** (Cmd+K on a Mac) opens a search pop-up from anywhere: jump to a page, open a product you checked, switch theme, sign in or out.
 - **/** jumps to the link box (and opens "Check a product" first if the page has none).
-- Resting the mouse on a product shows a short preview (verdict, counts, strongest quote). It is only an extra: the link works without it.
+- Resting the mouse on a product shows a short preview (result, counts, strongest quote). It is only an extra: the link works without it.
 - Home rows are carousels with arrows (drag or swipe also works).
 - On phones, filters on Products and on a report's Reviews tab open from the bottom.
 - Saving or unsaving a product shows an **Undo** toast.
@@ -442,7 +520,7 @@ Add more shadcn components with `npx shadcn-svelte@latest add <name>`.
 
 ```
 npm run check         types and Svelte checks
-npm run check:colors  verdict colours and the brand colour: contrast and colour-blind safety
+npm run check:colors  result colours and the brand colour: contrast and colour-blind safety
 npm run build         static build into build/ (start.cmd serves it)
 npm run test:e2e      the end-to-end tests, see below
 ```
@@ -456,10 +534,11 @@ folder, never the real one:
 
 ## Tests
 
-`tests/e2e/` holds 20 test files, about 550 checks (two of them for the browser extension, see `extension/README.md`). They drive the Chrome that is already installed and walk the
+`tests/e2e/` holds 22 test files, over 650 checks (two of them for the browser extension, see `extension/README.md`). They drive the Chrome that is already installed and walk the
 app the way a person would: signing up and in, a pretend live scan, the guest screen, the lock on the app, every
-verdict group and its colour, the brand colour, the wording, error screens, tap targets on a phone, the report, and accessibility
-(axe, WCAG 2.1 AA, light and dark).
+result group and its colour, the brand colour, the wording, error screens, tap targets on a phone, the report, the
+agency view (`agency.mjs` gives a test account access with `scripts/agency_accounts.py` on the scratch accounts
+database), and accessibility (axe, WCAG 2.1 AA, light and dark).
 
 ```
 npm run test:e2e                     every file, against a fresh build
@@ -480,7 +559,8 @@ What the tests touch:
   those are ever removed, those checks need another product.
 - **Marketplaces:** none is contacted. Live scans are pretended inside the test browser.
 
-The server's own tests (`tests/test_*.py`: the saved-products pool, `protections.py`, `serve.py` and the backups)
+The server's own tests (`tests/test_*.py`: the saved-products pool, `protections.py`, `serve.py`, the backups, the
+extension route and the agency view)
 run with the original app's Python, from this folder:
 
 ```

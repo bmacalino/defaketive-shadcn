@@ -1,5 +1,5 @@
 // Run the axe accessibility checker (WCAG 2.1 A/AA rules, including colour contrast) on the main pages,
-// in light and dark, with the made-up catalog so every verdict colour is on screen.
+// in light and dark, with the made-up catalog so every result colour is on screen.
 import { chromium } from 'playwright-core';
 import { signUp } from './_signin.mjs';
 import fs from 'node:fs';
@@ -52,8 +52,6 @@ context.on('console', __warn);
 	const page = await context.newPage();
 	await page.route('**/api/products', (r) => r.fulfill({ json: { products, count: products.length } }));
 	await page.route('**/api/saved/products', (r) => r.fulfill({ json: { products, count: products.length } }));
-	await page.route('**/api/picks', (r) => r.fulfill({ json: { products: [products[2]] } }));
-	await page.route('**/api/wishlist/popular', (r) => r.fulfill({ json: { products: [{ product: products[2], saves: 3 }] } }));
 	await page.route('**/api/products/detail**', (r) => r.fulfill({ json: detailFor(products[0]) }));
 	for (const route of ['/', '/app/home', '/app/analyze', '/app/products', '/app/history', '/app/wishlist', '/app/settings', '/app/about', '/app/faq', `/app/report?link=${encodeURIComponent(products[0].link)}`]) {
 		await page.goto(base + route, { waitUntil: 'networkidle' });
