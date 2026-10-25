@@ -1,5 +1,7 @@
 <script lang="ts">
+	import PrinterIcon from '@lucide/svelte/icons/printer';
 	import StoreIcon from '@lucide/svelte/icons/store';
+	import { Button } from '#lib/components/ui/button/index.js';
 	import EmptyState from '#lib/components/app/empty-state.svelte';
 	import VerdictBadge from '#lib/components/app/verdict-badge.svelte';
 	import { Card } from '#lib/components/ui/card/index.js';
@@ -32,10 +34,13 @@
 							</p>
 						</div>
 					</header>
-					<p class="flex flex-wrap gap-2 text-sm">
+					<div class="flex flex-wrap items-center gap-2 text-sm">
 						{#if seller.reports}<span class="flex items-center gap-1.5"><VerdictBadge kind="safety" /> {count(seller.reports)}</span>{/if}
-						{#if seller.mentions}<span class="flex items-center gap-1.5"><VerdictBadge kind="caution" /> {count(seller.mentions)}</span>{/if}
-					</p>
+						{#if seller.mentions}<span class="flex items-center gap-1.5"><VerdictBadge kind="caution" label="Safety mentions" /> {count(seller.mentions)}</span>{/if}
+						<Button variant="outline" size="sm" class="ml-auto" href="/app/agency/report?label=all&seller={encodeURIComponent(seller.seller)}">
+							<PrinterIcon /> Printable report<span class="sr-only"> for {seller.seller}</span>
+						</Button>
+					</div>
 					<ul class="divide-y border-t text-sm">
 						{#each seller.flagged as listing (listing.link)}
 							<li class="flex items-start justify-between gap-3 py-2">

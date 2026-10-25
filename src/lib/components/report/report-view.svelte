@@ -106,7 +106,8 @@
 				product = data.product;
 				recommendations = data.recommendations ?? [];
 				loading = false;
-				library.remember(data.product);
+				// Opened from the agency view (nav.agencyReportHref): work, not shopping, so not added to History.
+				if (page.url.searchParams.get('from') !== 'agency') library.remember(data.product);
 				// The report of the scan just finished is open: the header stops pointing at it.
 				scan.markSeen(data.product.link);
 			})

@@ -8,10 +8,19 @@
 	import type { Product } from '#lib/types.js';
 	import { cn } from '#lib/utils.js';
 
-	// Give it a product to show that product's group, or a `kind` to show a group by itself (in a legend).
-	let { product, kind, class: className }: { product?: Product | null; kind?: ChipKind; class?: string } = $props();
+	// Give it a product to show that product's group, or a `kind` to show a group by itself (in a legend). `label`
+	// renames it where a page uses its own word for the group (the DTI view calls Caution "Safety mentions").
+	let {
+		product,
+		kind,
+		label,
+		class: className
+	}: { product?: Product | null; kind?: ChipKind; label?: string; class?: string } = $props();
 
-	const chip = $derived(kind ? { kind, label: GROUP_NAMES[kind] } : chipFor(product));
+	const chip = $derived.by(() => {
+		const found = kind ? { kind, label: GROUP_NAMES[kind] } : chipFor(product);
+		return label ? { ...found, label } : found;
+	});
 </script>
 
 <!--

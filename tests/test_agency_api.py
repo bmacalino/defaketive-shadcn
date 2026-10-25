@@ -38,12 +38,14 @@ TERMS = [
 
 def made_up(item: int, state: str, safety: int = 0, *, name: str = "Power Bank 10000mAh Fast Charging",
             platform: str = "lazada", hazard: str = "overheat_burn", price: str = "₱599.00",
-            seller: str = "Test Store", dates: list[str] | None = None) -> dict:
-    """A saved product in the checker's format, with `safety` reviews tagged as safety reports."""
+            seller: str = "Test Store", dates: list[str] | None = None, fake: int = 0, nad: int = 0,
+            variations: list[str] | None = None) -> dict:
+    """A saved product in the checker's format, with `safety` reviews tagged as safety reports, and `fake` / `nad`
+    reviews saying it may be a copy / differs from the listing."""
     comments = [
         {
             "author": REVIEWER, "rating": 1, "time": (dates or [])[n] if n < len(dates or []) else f"2026-10-{10 + n:02d}",
-            "variation": "Color:Black",
+            "variation": (variations or [])[n] if n < len(variations or []) else "Color:Black",
             "content": f"{SENTENCE} Review {n}.",
             "sentiment_analysis": {
                 "review_tags": ["safety"],
@@ -63,7 +65,8 @@ def made_up(item: int, state: str, safety: int = 0, *, name: str = "Power Bank 1
         "schema_version": "defaketive-summary-2.test",
         "usable_review_count": 40,
         "verdict": {"state": state},
-        "flags": {"counterfeit": {"flagged_reviews": 0}, "defect": {"flagged_reviews": 0}},
+        "flags": {"counterfeit": {"flagged_reviews": fake}, "defect": {"flagged_reviews": 0}},
+        "reports": {"not_as_described": {"flagged_reviews": nad}},
         "safety": {
             "flagged_reviews": safety,
             "evidence": evidence,
@@ -77,9 +80,10 @@ def made_up(item: int, state: str, safety: int = 0, *, name: str = "Power Bank 1
 
 PRODUCTS = [
     # red, older; one review from 2024 and one Lazada showed as "3 weeks ago"
-    made_up(1, "safety_warning", 3, price="₱1,299.00", seller="Spark Shop", dates=["2024-03-05", "3 weeks ago"]),
+    made_up(1, "safety_warning", 3, price="₱1,299.00", seller="Spark Shop", dates=["2024-03-05", "3 weeks ago"],
+            fake=2, nad=3, variations=["Model:65W", "model : 65w", "Color:White"]),  # also: possible fake, not as advertised
     made_up(2, "safety_warning", 5, name="Wall Charger 20W USB-C", price="₱79.00", seller="Spark Shop"),  # red, newer
-    made_up(3, "possible_safety_issue", 1, price="₱99 - ₱199", seller="  spark   SHOP "),  # one mention, same seller
+    made_up(3, "possible_safety_issue", 1, price="₱99 - ₱199", seller="  spark   SHOP ", nad=1),  # one mention, same seller
     made_up(4, "no_warning_signs", 1, name="Wireless Mouse", hazard="shock_spark_short", price="₱450.00",
             seller="Mouse Hub"),                                                         # a mention below the verdict
     made_up(5, "no_warning_signs", 0, name="Wireless Mouse", price="₱450.00", seller="Mouse Hub"),  # nothing about safety
@@ -189,6 +193,28 @@ class WatchListTest(AgencyTestCase):
         answer = signed_in(agency=True).get("/api/agency/watch?level=mentions").get_json()
         self.assertEqual([row["link"] for row in answer["rows"]], MENTIONS)
 
+    def test_newest_complaint_first_with_its_date_and_price_band(self) -> None:
+        rows = {row["link"]: row for row in signed_in(agency=True).get("/api/agency/watch").get_json()["rows"]}
+        newer, older = rows[RED[0]], rows[RED[1]]
+        # The charger's newest safety review is 14 Oct; the power bank's is 12 Oct (its others are older, or "3 weeks ago").
+        self.assertEqual((newer["latest_report"], older["latest_report"]), ("2026-10-14", "2026-10-12"))
+        self.assertLess(newer["latest_report_age"], older["latest_report_age"])
+        self.assertFalse(newer["latest_report_approx"])
+        self.assertEqual((newer["price_band"], older["price_band"]), ("Under ₱200", "₱1,000 and up"))
+
+    def test_a_relative_date_counts_back_from_when_the_reviews_were_collected(self) -> None:
+        checked = "2026-10-20T04:00:00+00:00"
+        product = made_up(9, "safety_warning", 2, dates=["5 days ago", ""])
+        # No record of the scan: counted from the report's date.
+        self.assertEqual(agency_api.latest_report(product, checked)[:2], ("2026-10-15", True))
+        # The scan's own record (Philippine time) comes first.
+        product["review_checkpoint"] = {"updated_at": "2026-10-10T09:00:00"}
+        self.assertEqual(agency_api.latest_report(product, checked)[:2], ("2026-10-05", True))
+        # No date at all, or a relative one with nothing to count from.
+        self.assertEqual(agency_api.latest_report(made_up(10, "safety_warning", 1, dates=[""]), checked), (None, False, None))
+        self.assertEqual(agency_api.latest_report(made_up(11, "safety_warning", 1, dates=["2 weeks ago"]), None), (None, False, None))
+        self.assertIsNone(agency_api._price_band(""))
+
     def test_an_unknown_level_is_refused(self) -> None:
         self.assertEqual(signed_in(agency=True).get("/api/agency/watch?level=all").status_code, 400)
 
@@ -245,9 +271,11 @@ class EvidenceTest(AgencyTestCase):
             review["time"] = date
         from dashboard_utils import badge_view
 
-        sheet = agency_api.evidence_sheet(product, badge_view(product), None)
+        sheet = agency_api.evidence_sheet(product, badge_view(product), "2026-10-20T04:00:00+00:00")
         self.assertEqual([review["date"] for review in sheet["reviews"]], ["3 days ago", "2 weeks ago", "2025-01-05", None])
         self.assertEqual([review["date_relative"] for review in sheet["reviews"]], [True, True, False, False])
+        self.assertEqual([review["day"] for review in sheet["reviews"]], ["2026-10-17", "2026-10-06", "2025-01-05", None])
+        self.assertEqual([review["day_approx"] for review in sheet["reviews"]], [True, True, False, False])
 
     def test_found_however_the_address_is_written(self) -> None:
         client = signed_in(agency=True)
@@ -272,6 +300,80 @@ class PatternsTest(AgencyTestCase):
         self.assertIsNone(kinds["Other"]["top_hazard"])
         self.assertEqual(answer["kinds"][-1]["kind"], "Other")
         self.assertEqual(answer["scope"], agency_api.SCOPE_NOTE)
+
+
+class AlsoReportedTest(AgencyTestCase):
+    def test_rows_carry_the_other_problems_in_the_reports_own_words(self) -> None:
+        client = signed_in(agency=True)
+        rows = {row["link"]: row for row in client.get("/api/agency/watch").get_json()["rows"]}
+        self.assertEqual(rows[RED[1]]["also"], [
+            {"category": "not_as_described", "label": "Not as advertised", "reviews": 3},
+            {"category": "counterfeit", "label": "Possible fake", "reviews": 2},
+        ])
+        self.assertEqual(rows[RED[0]]["also"], [])
+        mentions = {row["link"]: row for row in client.get("/api/agency/watch?level=mentions").get_json()["rows"]}
+        self.assertEqual([item["category"] for item in mentions[MENTIONS[0]]["also"]], ["not_as_described"])
+
+    def test_the_chart_counts_flagged_listings_by_level(self) -> None:
+        also = signed_in(agency=True).get("/api/agency/patterns").get_json()["charts"]["also"]
+        # Four flagged Lazada listings: the red power bank has both, the orange one "not as advertised".
+        self.assertEqual(
+            [(row["category"], row["label"], row["reports"], row["mentions"], row["flagged"]) for row in also],
+            [("not_as_described", "Not as advertised", 1, 1, 4), ("counterfeit", "Possible fake", 1, 0, 4)],
+        )
+
+    def test_the_sheet_names_the_variants_most_first(self) -> None:
+        sheet = signed_in(agency=True).get("/api/agency/evidence", query_string={"link": RED[1]}).get_json()["sheet"]
+        # "Model:65W" and "model : 65w" are one variant, written with its capitals, tidied.
+        self.assertEqual(sheet["variants"], [{"variant": "Model: 65W", "reviews": 2}, {"variant": "Color: White", "reviews": 1}])
+        self.assertEqual(sheet["variants_more"], 0)
+        self.assertEqual([item["label"] for item in sheet["also"]], ["Not as advertised", "Possible fake"])
+
+    def test_a_label_that_says_nothing_is_left_out(self) -> None:
+        self.assertEqual(agency_api._tidy_variant("Variation:480w  type-c charger"), "480w type-c charger")
+        self.assertEqual(agency_api._tidy_variant("Options: 12V5A"), "12V5A")
+        self.assertEqual(agency_api._tidy_variant("Color Family:Black"), "Color Family: Black")
+        # Kept when more labels follow: then it is part of the description.
+        self.assertEqual(agency_api._tidy_variant("Variation: Type-C, Color: White"), "Variation: Type-C, Color: White")
+
+    def test_at_most_six_variants_are_listed(self) -> None:
+        shown, more = agency_api.variants_named([{"variation": f"Size:{n}"} for n in range(9)] + [{"variation": "  "}])
+        self.assertEqual((len(shown), more), (6, 3))
+
+    def test_the_spreadsheet_says_it_too(self) -> None:
+        import csv
+
+        text = signed_in(agency=True).get("/api/agency/watch.csv?level=reports").get_data(as_text=True)
+        rows = {row["Link"]: row for row in csv.DictReader(io.StringIO(text.lstrip("﻿")))}
+        self.assertEqual(rows[RED[1]]["Also reported"], "Not as advertised; Possible fake")
+        self.assertEqual(rows[RED[0]]["Also reported"], "")
+
+    def test_the_spreadsheet_can_hold_one_other_problem_only(self) -> None:
+        import csv
+
+        client = signed_in(agency=True)
+        text = client.get("/api/agency/watch.csv?level=all&also=not_as_described").get_data(as_text=True)
+        self.assertEqual([row["Link"] for row in csv.DictReader(io.StringIO(text.lstrip("﻿")))], [RED[1], MENTIONS[0]])
+        self.assertEqual(client.get("/api/agency/watch.csv?also=quality").status_code, 400)
+
+
+class SheetsTest(AgencyTestCase):
+    def test_several_sheets_in_the_order_asked_and_nothing_marked_seen(self) -> None:
+        client = signed_in(agency=True)
+        stray = [LAZADA.format(99999), PRODUCTS[5]["link"], RED[1]]  # unknown, not Lazada, asked twice
+        answer = client.post("/api/agency/sheets", json={"links": [MENTIONS[0], RED[1], *stray]})
+        self.assertEqual(answer.status_code, 200)
+        self.assertEqual([sheet["link"] for sheet in answer.get_json()["sheets"]], [MENTIONS[0], RED[1]])
+        self.assertNotIn(REVIEWER, answer.get_data(as_text=True))
+        self.assertEqual(client.get("/api/agency/watch").get_json()["new"], {"reports": 2, "mentions": 2})
+
+    def test_limits_and_refusals(self) -> None:
+        client = signed_in(agency=True)
+        self.assertEqual(client.post("/api/agency/sheets", json={"links": [RED[0]] * 61}).status_code, 400)
+        self.assertEqual(client.post("/api/agency/sheets", json={"links": []}).status_code, 400)
+        self.assertEqual(client.post("/api/agency/sheets", data="links").status_code, 415)
+        self.assertEqual(signed_in().post("/api/agency/sheets", json={"links": [RED[0]]}).status_code, 403)
+        self.assertEqual(app.test_client().post("/api/agency/sheets", json={"links": [RED[0]]}).status_code, 401)
 
 
 class GuideTest(AgencyTestCase):
@@ -305,9 +407,9 @@ class ChartsTest(AgencyTestCase):
             {"hazard": "overheating or burns", "quotes": 9},
             {"hazard": "electric shocks, sparks or short circuits", "quotes": 1},
         ])
-        # Every year from the first to the last, a quiet year as 0; "3 weeks ago" is counted apart.
-        self.assertEqual(drawn["years"], [{"year": 2024, "reviews": 1}, {"year": 2025, "reviews": 0}, {"year": 2026, "reviews": 8}])
-        self.assertEqual(drawn["recent_or_unknown"], 1)
+        # Every year from the first to the last, a quiet year as 0; "3 weeks ago" counts back from the report date.
+        self.assertEqual(drawn["years"], [{"year": 2024, "reviews": 1}, {"year": 2025, "reviews": 0}, {"year": 2026, "reviews": 9}])
+        self.assertEqual(drawn["recent_or_unknown"], 0)
         self.assertEqual(drawn["prices"], [
             {"band": "Under ₱200", "listings": 2, "reports": 1, "mentions": 1},
             {"band": "₱200–499", "listings": 2, "reports": 0, "mentions": 1},
@@ -336,14 +438,27 @@ class SellersTest(AgencyTestCase):
 class CasesTest(AgencyTestCase):
     def test_a_status_and_note_are_kept_for_this_account_only(self) -> None:
         first, second = signed_in(agency=True), signed_in(agency=True)
-        answer = first.put("/api/agency/case", json={"link": RED[0], "status": "referred", "note": "  Sent to the regional office.  "})
+        answer = first.put("/api/agency/case", json={"link": RED[0], "status": "no_action", "note": "  Sent to the regional office.  "})
         self.assertEqual(answer.status_code, 200)
-        self.assertEqual((answer.get_json()["case"]["status"], answer.get_json()["case"]["note"]), ("referred", "Sent to the regional office."))
+        self.assertEqual((answer.get_json()["case"]["status"], answer.get_json()["case"]["note"]), ("no_action", "Sent to the regional office."))
         rows = {row["link"]: row["case"] for row in first.get("/api/agency/watch").get_json()["rows"]}
-        self.assertEqual(rows[RED[0]]["status"], "referred")
+        self.assertEqual(rows[RED[0]]["status"], "no_action")
         self.assertIsNone(rows[RED[1]])
         self.assertEqual(first.get("/api/agency/evidence", query_string={"link": RED[0]}).get_json()["sheet"]["case"]["note"], "Sent to the regional office.")
         self.assertTrue(all(row["case"] is None for row in second.get("/api/agency/watch").get_json()["rows"]))
+
+    def test_referred_is_gone_and_an_old_one_reads_under_review(self) -> None:
+        import sqlite3
+        from contextlib import closing
+
+        client = signed_in(agency=True)
+        self.assertEqual(client.put("/api/agency/case", json={"link": RED[0], "status": "referred"}).status_code, 400)
+        email = client.get("/api/auth/me").get_json()["user"]["email"]
+        user_id = agency_api.user_by_email(DATABASE(), email)["id"]
+        # A status saved before "Referred" was dropped.
+        with closing(sqlite3.connect(DATABASE())) as connection, connection:
+            connection.execute("INSERT INTO agency_cases(user_id, link, status, note, updated_at) VALUES (?, ?, 'referred', '', 'x')", (user_id, RED[0]))
+        self.assertEqual(agency_api.cases_of(DATABASE(), user_id)[RED[0]]["status"], "looking")
 
     def test_clearing_both_forgets_the_listing(self) -> None:
         client = signed_in(agency=True)
@@ -417,7 +532,7 @@ class SpreadsheetTest(AgencyTestCase):
         self.assertEqual(tuple(rows[0]), agency_api.CSV_COLUMNS)
         self.assertEqual([row[2] for row in rows[1:]], RED + MENTIONS)
         first = dict(zip(rows[0], rows[1]))
-        self.assertEqual((first["Level"], first["Price"], first["Safety reviews"], first["Your status"]), ("Safety reports", "₱79.00", "5", "Looking into it"))
+        self.assertEqual((first["Level"], first["Price"], first["Safety reviews"], first["Case status"]), ("Safety reports", "₱79.00", "5", "Under review"))
         self.assertEqual(first["Your note"], "'=1+1 check this")
         self.assertNotIn(REVIEWER, text)
         only_mentions = client.get("/api/agency/watch.csv?level=mentions").get_data(as_text=True)

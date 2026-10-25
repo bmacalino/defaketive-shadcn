@@ -7,10 +7,17 @@
 	import AgencyChartCard from './agency-chart-card.svelte';
 	import AgencyColumns from './agency-columns.svelte';
 
-	// The Overview tab: four charts of the same saved reports the watch list shows, then every kind in a table.
+	// The Overview tab: five charts of the same saved reports the watch list shows, then every kind in a table.
 	// Each chart says in words what it shows and what it does not; counts, never percentages, because most groups
 	// are small.
-	let { patterns }: { patterns: AgencyPatterns } = $props();
+	let {
+		patterns,
+		onselect
+	}: {
+		patterns: AgencyPatterns;
+		/** A kind, price band or other problem picked on a chart: the page opens the watch list with it. */
+		onselect?: (group: { kind?: string; price?: string; also?: string }) => void;
+	} = $props();
 
 	const count = (value: number) => value.toLocaleString();
 	const plural = (value: number, one: string, many = `${one}s`) => `${count(value)} ${value === 1 ? one : many}`;
@@ -50,6 +57,23 @@
 	const years = $derived(patterns.charts.years);
 	const dated = $derived(years.reduce((sum, y) => sum + y.reviews, 0));
 	const topYear = $derived([...years].sort((a, b) => b.reviews - a.reviews)[0]);
+
+	// 5. What else buyers report about the flagged listings: misleading listings and copies concern the office too.
+	// Each bar is all the flagged listings; the grey part is those without that problem.
+	const also = $derived(patterns.charts.also ?? []);
+	const flaggedCount = $derived(also[0]?.flagged ?? 0);
+	const alsoRows = $derived(
+		also.map((item) => ({ label: item.label, values: { reports: item.reports, mentions: item.mentions, none: item.flagged - item.reports - item.mentions } }))
+	);
+	const alsoTip = (row: { values: Record<string, number> }) => {
+		const { reports = 0, mentions = 0, none = 0 } = row.values;
+		return `${count(reports + mentions)} of ${plural(reports + mentions + none, 'flagged listing')}: ${count(reports)} with safety reports, ${count(mentions)} with safety mentions`;
+	};
+	const ALSO_LEGEND = [
+		{ key: 'reports', label: 'Safety reports' },
+		{ key: 'mentions', label: 'Safety mentions' },
+		{ key: 'none', label: 'Without it' }
+	];
 </script>
 
 {#snippet levelLegend(keys: readonly string[])}
@@ -67,11 +91,11 @@
 		takeaway={topKind
 			? `Most flagged: ${topKind.kind.toLowerCase()}, ${count(topKind.reports + topKind.mentions)} of ${count(topKind.listings)} listings with safety reviews.`
 			: 'No kind of product has safety reviews yet.'}
-		note={`Each bar is all the listings of that kind DeFaketive has checked. ${quietKinds ? `${plural(quietKinds, 'kind')} with no safety reviews ${quietKinds === 1 ? 'is' : 'are'} only in the table below.` : ''}`}
+		note={`Each bar is all the listings of that kind DeFaketive has checked. Choose a kind to see its listings. ${quietKinds ? `${plural(quietKinds, 'kind')} with no safety reviews ${quietKinds === 1 ? 'is' : 'are'} only in the table below.` : ''}`}
 	>
 		{#snippet legend()}{@render levelLegend(['reports', 'mentions', 'none'])}{/snippet}
 		{#snippet chart()}
-			<AgencyBars rows={kindRows} series={LEVEL_SERIES} label="Listings with safety reviews, by kind of product" end={flaggedEnd} tip={splitTip} />
+			<AgencyBars rows={kindRows} series={LEVEL_SERIES} label="Listings with safety reviews, by kind of product" end={flaggedEnd} tip={splitTip} onselect={onselect && ((row) => onselect({ kind: row.label }))} />
 		{/snippet}
 	</AgencyChartCard>
 
@@ -84,7 +108,7 @@
 	>
 		{#snippet legend()}{@render levelLegend(['reports', 'mentions', 'none'])}{/snippet}
 		{#snippet chart()}
-			<AgencyBars rows={priceRows} series={LEVEL_SERIES} label="Listings with safety reviews, by price" end={flaggedEnd} tip={splitTip} />
+			<AgencyBars rows={priceRows} series={LEVEL_SERIES} label="Listings with safety reviews, by price" end={flaggedEnd} tip={splitTip} onselect={onselect && ((row) => onselect({ price: row.label }))} />
 		{/snippet}
 		{#snippet numbers()}
 			<Table.Root>
@@ -121,7 +145,7 @@
 	<AgencyChartCard
 		title="When buyers reported"
 		takeaway={topYear?.reviews ? `Most safety reviews are from ${topYear.year}: ${count(topYear.reviews)} of ${count(dated)}.` : 'No dated safety reviews yet.'}
-		note={`DeFaketive reads up to 60 of the newest reviews per star level, so older years look smaller than they were.${patterns.charts.recent_or_unknown ? ` ${plural(patterns.charts.recent_or_unknown, 'review')} with no exact date ${patterns.charts.recent_or_unknown === 1 ? 'is' : 'are'} left out.` : ''}`}
+		note={`DeFaketive reads up to 60 of the newest reviews per star level, so older years look smaller than they were. Dates Lazada gave as "3 weeks ago" are counted back from when the reviews were collected.${patterns.charts.recent_or_unknown ? ` ${plural(patterns.charts.recent_or_unknown, 'review')} with no date ${patterns.charts.recent_or_unknown === 1 ? 'is' : 'are'} left out.` : ''}`}
 	>
 		{#snippet chart()}
 			<AgencyColumns
@@ -141,6 +165,42 @@
 			</Table.Root>
 		{/snippet}
 	</AgencyChartCard>
+
+	{#if also.length && flaggedCount}
+		<AgencyChartCard
+			title="What else buyers report"
+			takeaway={`Most often: ${also[0].label.toLowerCase()}, ${count(also[0].reports + also[0].mentions)} of ${plural(flaggedCount, 'flagged listing')}.`}
+			note="Counted on the listings with safety reviews; a listing can have both. Choose one to see its listings."
+		>
+			{#snippet legend()}
+				<ul class="flex flex-wrap gap-x-4 gap-y-1 text-xs" aria-label="What the colours mean">
+					{#each LEVEL_SERIES as s, index (s.key)}
+						<li class="flex items-center gap-1.5"><span class="size-2.5 rounded-sm" style="background: {s.color}" aria-hidden="true"></span>{ALSO_LEGEND[index].label}</li>
+					{/each}
+				</ul>
+			{/snippet}
+			{#snippet chart()}
+				<AgencyBars
+					rows={alsoRows}
+					series={LEVEL_SERIES}
+					label="Flagged listings that buyers also report other problems about"
+					end={flaggedEnd}
+					tip={alsoTip}
+					onselect={onselect && ((row) => onselect({ also: also.find((item) => item.label === row.label)?.category }))}
+				/>
+			{/snippet}
+			{#snippet numbers()}
+				<Table.Root>
+					<Table.Header><Table.Row><Table.Head>Also reported</Table.Head><Table.Head class="text-right">Safety reports</Table.Head><Table.Head class="text-right">Safety mentions</Table.Head><Table.Head class="text-right">Of flagged</Table.Head></Table.Row></Table.Header>
+					<Table.Body>
+						{#each also as item (item.category)}
+							<Table.Row><Table.Cell>{item.label}</Table.Cell><Table.Cell class="text-right tabular-nums">{count(item.reports)}</Table.Cell><Table.Cell class="text-right tabular-nums">{count(item.mentions)}</Table.Cell><Table.Cell class="text-right tabular-nums">{count(item.reports + item.mentions)} of {count(item.flagged)}</Table.Cell></Table.Row>
+						{/each}
+					</Table.Body>
+				</Table.Root>
+			{/snippet}
+		</AgencyChartCard>
+	{/if}
 </div>
 
 <section class="space-y-2" aria-labelledby="kinds-table-title">

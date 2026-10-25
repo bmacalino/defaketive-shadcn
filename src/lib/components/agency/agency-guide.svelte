@@ -101,13 +101,13 @@
 							<span class="text-muted-foreground">The check's most serious level: buyers report fire, smoke, shocks or burns, more than once or very clearly.</span>
 						</li>
 						<li class="grid gap-1 rounded-lg border p-3">
-							<VerdictBadge kind="caution" class="w-fit" />
+							<VerdictBadge kind="caution" label="Safety mentions" class="w-fit" />
 							<span class="text-muted-foreground">Safety mentions below that level. Worth a look, with more care.</span>
 						</li>
 					</ul>
 					<ul class="grid gap-3">
 						{@render point(SparklesIcon, 'New', 'marks a listing you have not opened yet. The menu shows how many.')}
-						{@render point(NotebookPenIcon, 'Your status and note', 'keep track of each listing: Looking into it, Referred or No action. Only you see them.')}
+						{@render point(NotebookPenIcon, 'Case status and note', 'keep track of each listing: Not reviewed, Under review or Closed, no action. Only you see them.')}
 						{@render point(DownloadIcon, 'Download spreadsheet', 'gives the list as a file for Excel, with your statuses and notes.')}
 					</ul>
 				{:else if current === 'sheet'}

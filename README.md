@@ -191,6 +191,7 @@ so a rented server needs 2 GB.
 | `/app/about`, `/app/faq` | About the project, questions, how results work |
 | `/app/agency` | **Agency view** (partner agency accounts only): watch list with status, notes and a spreadsheet download; Overview charts; sellers with several flagged listings |
 | `/app/agency/evidence?link=…` | One listing's evidence sheet, to print or save as a PDF |
+| `/app/agency/report?…` | Several evidence sheets in one printable report (the watch list's filters, or one seller) |
 
 Sign-in and sign-up are pop-ups that open from anywhere.
 
@@ -250,23 +251,42 @@ the Edit account pop-up.
 
 **What it shows.** Nothing that is not already in the saved reports, arranged for the office, in three tabs:
 
-- **Watch list**: Lazada listings at the red "Safety reports" level, or with safety mentions below it; newest report
-  first, two quotes each; a filter by the account's own status; **Download spreadsheet** (`/api/agency/watch.csv`, the
-  level shown, with the account's status and note; UTF-8 with a byte-order mark so Excel shows ₱; a cell starting
-  with `= + - @` gets a leading `'` so it can never run as a formula).
-- **Overview**: four charts, each with a one-line takeaway, a note on what it does NOT show, and (except the first)
+- **Watch list**: Lazada listings at the red "Safety reports" level, or with safety mentions below it, two quotes
+  each, **newest complaint first**: by each listing's latest safety review, not the report date (re-checking every
+  saved report gives them all one date). Lazada shows its newest reviews as "3 weeks ago"; those count back from when
+  the reviews were collected (`review_checkpoint.updated_at`, else the report date) and read "about Oct 6, 2026".
+  **Search** by listing or seller and **filter** by one **Label** menu (All labels / Safety reports / Safety mentions /
+  Possible fake / Not as advertised, each with its count; misleading listings and copies concern the office too and
+  show as small badges on each row), kind, price band, the **latest safety review's date range** (a calendar pop-up,
+  `src/lib/components/agency/agency-date-range.svelte` on shadcn's `range-calendar`; no day after today) and the
+  **case status**. Always newest complaint first (no sort menu). The filters live in the address
+  (`?label=&q=&kind=&price=&from=&to=&status=`), so a reload or Back keeps them; on a phone they sit in a Filters
+  sheet. **Download spreadsheet**
+  (`/api/agency/watch.csv`, the level shown, with the account's status and note; UTF-8 with a byte-order mark so Excel
+  shows ₱; a cell starting with `= + - @` gets a leading `'` so it can never run as a formula).
+- **Overview**: five charts, each with a one-line takeaway, a note on what it does NOT show, and (except the first)
   "Show the numbers": listings by product kind and by price band (red reports / orange mentions / grey neither, the
-  verdict colours, never the brand purple), safety quotes by kind of hazard and safety reviews by year (grey). Then
-  every kind in a table. Counts, never percentages: most groups are small. The bars are plain HTML
-  (`src/lib/components/agency/`) so long labels wrap on a phone and the page prints.
+  verdict colours, never the brand purple), safety quotes by kind of hazard and safety reviews by year (grey), and
+  **what else buyers report** about the flagged listings (not as advertised, possible fake; the grey part is the
+  flagged listings without it). Then every kind in a table. Counts, never percentages: most groups are small. The
+  bars are plain HTML (`src/lib/components/agency/`) so long labels wrap on a phone and the page prints. A kind, a
+  price band or an "also reported" problem on those charts opens the watch list filtered to it (at the red level
+  when it has any there).
 - **Sellers**: sellers with two or more flagged listings, grouped by the name Lazada shows (not a checked identity,
   and the page says so), each with its flagged listings linking to their evidence sheets.
 
-An **evidence sheet** per listing gives the link, seller, price, report date, reviews read, the result, and every
+An **evidence sheet** per listing gives the link, seller, price, report date, reviews read, the **variants named in
+its safety reviews** (most first, e.g. "45W+1M Type-C Cable × 3": which model to buy for a test), the result, and every
 review the report counts as a safety report (stars, date, variation, the matched sentences, the full text), newest
 first. Reviewers' names never leave the server, and the view shows nothing about anyone's account.
 
-**Status and notes.** Each agency account can give a listing a status (Looking into it / Referred / No action) and a
+A **printable report** (`/app/agency/report`) puts several sheets in one document: a cover saying what is in it and
+how to read it, a summary table, then each listing's sheet on its own page. "Printable report" on the watch list
+takes what the list shows now (same filters, `filterRows` in `src/lib/agency.ts`); on a seller card, that seller's
+flagged listings at both levels. Up to 60 listings (`POST /api/agency/sheets`); it marks nothing as seen.
+
+**Status and notes.** Each agency account can give a listing a case status (Not reviewed / Under review / Closed, no action; "Referred" was dropped on 24 Oct
+2026 and a saved one now reads Under review) and a
 private note (up to 2,000 characters) on the watch list or the sheet (`PUT /api/agency/case`, table `agency_cases`).
 Only that account sees them; they are never printed.
 

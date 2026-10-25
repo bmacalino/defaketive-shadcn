@@ -48,9 +48,11 @@ await settle(page, 800);
 const analyze = await page.evaluate(() => document.body.innerText);
 check(!analyze.includes('Step 1 of 3') && !analyze.includes('We read the reviews') && !analyze.includes('Read your report'), 'Check: no step line above the card');
 check(!analyze.includes('What happens next?') && !analyze.includes('Check right on Lazada'), 'Check: the two side cards are gone');
+// The page's own heading, inside the content area (.page-view). The first header in <main> is the app's top bar,
+// which spans the whole width and is never as narrow as the content.
 const widths = await page.evaluate(() => ({
-	header: document.querySelector('main header')?.getBoundingClientRect().width ?? 0,
-	card: document.querySelector('main [data-slot="card"]')?.getBoundingClientRect().width ?? 0
+	header: document.querySelector('main .page-view header')?.getBoundingClientRect().width ?? 0,
+	card: document.querySelector('main .page-view [data-slot="card"]')?.getBoundingClientRect().width ?? 0
 }));
 check(widths.card > 0 && Math.abs(widths.card - widths.header) < 2, `Check: the card is as wide as the page (${Math.round(widths.card)} and ${Math.round(widths.header)})`);
 

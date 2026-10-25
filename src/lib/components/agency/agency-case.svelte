@@ -23,7 +23,8 @@
 		name,
 		value: given = null,
 		id,
-		onsaved
+		onsaved,
+		showNote = true
 	}: {
 		link: string;
 		name: string;
@@ -31,6 +32,8 @@
 		id: string;
 		/** After a save, so the page can keep its list (and its status filter) up to date. */
 		onsaved?: (value: AgencyCase | null) => void;
+		/** Show the note's text under the controls. The watch list shows it itself, below its row of buttons. */
+		showNote?: boolean;
 	} = $props();
 
 	let value = $state<AgencyCase | null>(null);
@@ -80,7 +83,7 @@
 <div class="flex flex-wrap items-center gap-2" data-print="hide">
 	<Select.Root type="single" value={value?.status || NONE} onValueChange={choose}>
 		<Select.Trigger id="{id}-status" size="sm" class="w-40" disabled={busy}>
-			<span class="sr-only">Your status for {name}: </span>{statusLabel(value?.status)}
+			<span class="sr-only">Case status for {name}: </span>{statusLabel(value?.status)}
 		</Select.Trigger>
 		<Select.Content>
 			{#each STATUSES as status (status.value)}<Select.Item value={status.value || NONE} label={status.label}>{status.label}</Select.Item>{/each}
@@ -90,7 +93,7 @@
 		<NotebookPenIcon /> {value?.note ? 'Edit note' : 'Add note'}<span class="sr-only"> for {name}</span>
 	</Button>
 </div>
-{#if value?.note}
+{#if showNote && value?.note}
 	<p class="text-muted-foreground line-clamp-2 text-sm whitespace-pre-line" data-print="hide">
 		<span class="text-foreground font-medium">Your note:</span> {value.note}
 	</p>

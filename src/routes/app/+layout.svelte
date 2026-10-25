@@ -68,7 +68,7 @@
 	};
 	const current = $derived.by(() => {
 		const [, , section = '', sub = ''] = page.url.pathname.split('/');
-		if (section === 'agency') return sub === 'evidence' ? 'Evidence sheet' : agency.title;
+		if (section === 'agency') return sub === 'evidence' ? 'Evidence sheet' : sub === 'report' ? 'Printable report' : agency.title;
 		return titles[section] ?? 'DeFaketive';
 	});
 

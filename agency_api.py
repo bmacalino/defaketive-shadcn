@@ -18,6 +18,7 @@ product is unsafe or that a seller broke a rule.
     GET  /api/agency/watch?level=mentions   listings where reviews mention safety below that level
     GET  /api/agency/patterns               per kind of product: listings checked, with reports, with mentions
     GET  /api/agency/evidence?link=...      one listing's evidence sheet; opening it marks the listing as seen
+    POST /api/agency/sheets                 {"links": [...]}: up to 60 sheets for a combined report (marks nothing)
     POST /api/agency/seen                   {"links": [...]} or {"level": "reports"|"mentions"}: mark as seen
     GET  /api/agency/watch.csv?level=all    the watch list as a spreadsheet, with this account's status and notes
     GET  /api/agency/sellers                sellers with two or more flagged listings, and those listings
@@ -39,7 +40,7 @@ import re
 from collections import Counter
 from collections.abc import Callable, Iterator
 from contextlib import contextmanager
-from datetime import datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 from urllib.parse import urlsplit
@@ -84,19 +85,26 @@ LEVELS = ("reports", "mentions")
 QUOTES_PER_ROW = 2
 MAX_SEEN_LINKS = 500
 # Where a listing stands for this agency account. The words are the screens' and the spreadsheet's.
-STATUSES = {"": "No status", "looking": "Looking into it", "referred": "Referred", "no_action": "No action"}
+# "Referred" was dropped on 24 Oct 2026 (unclear outside an office); a saved one now reads "Under review" (_connect).
+STATUSES = {"": "Not reviewed", "looking": "Under review", "no_action": "Closed, no action"}
 MAX_NOTE = 2000
 MAX_REASON = 500
+MAX_REPORT_LISTINGS = 60
 PRICE_BANDS = ((200, "Under ₱200"), (500, "₱200–499"), (1000, "₱500–999"), (float("inf"), "₱1,000 and up"))
 SELLER_NOTE = (
     "Seller names are as Lazada shows them, not checked identities. More than one flagged listing is a reason to "
     "look closer, not proof that a seller did anything wrong."
 )
 CSV_COLUMNS = (
-    "Level", "Listing", "Link", "Seller", "Kind of product", "Price", "Safety reviews", "Reviews read",
-    "Ratings listed", "What buyers mention", "Report date", "Made with an older check", "Your status", "Your note",
+    "Level", "Listing", "Link", "Seller", "Kind of product", "Price", "Safety reviews", "Latest safety review",
+    "Reviews read", "Ratings listed", "What buyers mention", "Also reported", "Report date", "Made with an older check",
+    "Case status", "Your note",
 )
 LEVEL_NAMES = {"reports": "Safety reports", "mentions": "Safety mentions"}
+# The other things buyers report that concern the office too: misleading listings and copies. Their labels are the
+# report's own (dashboard_utils.BADGE_COPY), so every screen words them the same way.
+ALSO = ("not_as_described", "counterfeit")
+VARIANTS_SHOWN = 6
 
 SIGN_IN_MESSAGE = "Sign in to open the agency view."
 NOT_MEMBER_MESSAGE = "This page is for partner agencies. If you work with one, ask the DeFaketive team for access."
@@ -124,6 +132,7 @@ def _connect(path: str | Path) -> Iterator[Any]:
     # agency rows too.
     with accounts._connect(path) as connection:
         connection.executescript(SCHEMA)
+        connection.execute("UPDATE agency_cases SET status = 'looking' WHERE status = 'referred'")
         yield connection
 
 
@@ -288,17 +297,43 @@ RELATIVE_DATE = re.compile(r"^\s*(\d+)\s*(minute|hour|day|week|month|year)s?\s+a
 DAYS_PER = {"minute": 0, "hour": 0, "day": 1, "week": 7, "month": 30, "year": 365}
 
 
-def _age_in_days(date: str) -> float:
-    """How old a review is, for sorting only. Most saved dates are "2025-10-27"; reviews Lazada showed as "3 weeks
-    ago" are counted from when they were collected, which is recent, so that is a fair guess at their order."""
-    relative = RELATIVE_DATE.match(date)
-    if relative:
-        return int(relative.group(1)) * DAYS_PER[relative.group(2).lower()]
+MANILA = timezone(timedelta(hours=8))
+
+
+def _moment(value: Any) -> datetime | None:
+    """An ISO date and time; one written without a zone is Philippine time (the scanner's own clock)."""
     try:
-        day = datetime.strptime(date[:10], "%Y-%m-%d").replace(tzinfo=timezone.utc)
+        moment = datetime.fromisoformat(str(value or "").strip().replace("Z", "+00:00"))
     except ValueError:
-        return float("inf")
-    return (datetime.now(timezone.utc) - day).total_seconds() / 86400
+        return None
+    return moment if moment.tzinfo else moment.replace(tzinfo=MANILA)
+
+
+def collected_at(product: dict[str, Any], checked_at: str | None) -> datetime | None:
+    """When this listing's reviews were collected: the scan's own record, else the report's date (later, if the
+    report was re-checked since, so dates counted from it come out a little too recent)."""
+    checkpoint = product.get("review_checkpoint")
+    return _moment(checkpoint.get("updated_at") if isinstance(checkpoint, dict) else None) or _moment(checked_at)
+
+
+def review_day(text: str, collected: datetime | None) -> tuple[date | None, bool]:
+    """The day a review was written, and whether that is a guess. Most saved dates are "2025-10-27". Lazada shows its
+    newest reviews as "3 weeks ago", true on the day they were collected, so those count back from then (months as
+    30 days): approximate, and said so on screen."""
+    relative = RELATIVE_DATE.match(text)
+    if relative:
+        if collected is None:
+            return None, True
+        back = timedelta(days=int(relative.group(1)) * DAYS_PER[relative.group(2).lower()])
+        return (collected - back).astimezone(MANILA).date(), True
+    try:
+        return datetime.strptime(text[:10], "%Y-%m-%d").date(), False
+    except ValueError:
+        return None, False
+
+
+def _today() -> date:
+    return datetime.now(MANILA).date()
 
 
 def _safety_spans(sentence: dict[str, Any]) -> list[list[int]]:
@@ -398,11 +433,36 @@ def _price_value(text: Any) -> float | None:
     return float(found.group(0).replace(",", "")) if found else None
 
 
+def _price_band(text: Any) -> str | None:
+    price = _price_value(text)
+    return None if price is None else next(label for limit, label in PRICE_BANDS if price < limit)
+
+
+def _review_text_date(review: dict[str, Any]) -> str:
+    return str(review.get("time") or review.get("reviewed_at") or "").strip()
+
+
+def latest_report(product: dict[str, Any], checked_at: str | None) -> tuple[str | None, bool, int | None]:
+    """The newest review the report counts as a safety report: its day ("2026-10-14"), whether that day is
+    approximate (Lazada gave "3 weeks ago"), and how many days old it is.
+
+    This, not the report's own date, says what is recent: re-checking every saved report gives them all one date.
+    """
+    collected = collected_at(product, checked_at)
+    days = [review_day(_review_text_date(review), collected) for review, _ in _safety_reviews(product)]
+    dated = [(day, approximate) for day, approximate in days if day]
+    if not dated:
+        return None, False, None
+    day, approximate = max(dated, key=lambda item: (item[0], not item[1]))
+    return day.isoformat(), approximate, (_today() - day).days
+
+
 def watch_row(
     product: dict[str, Any], view: dict[str, Any], checked_at: str | None, seen: set[str],
     cases: dict[str, dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
     badge = _safety_badge(view)
+    latest, approximate, age = latest_report(product, checked_at)
     return {
         "link": product["link"],
         "name": product.get("name") or "",
@@ -418,11 +478,16 @@ def watch_row(
         "summary": badge.get("summary") or "",
         "reviews_analyzed": int(view.get("reviews_analyzed") or 0),
         "ratings_listed": int(product.get("total_rating") or product.get("reported_review_count") or 0),
+        "price_band": _price_band(product.get("price")),
+        "latest_report": latest,
+        "latest_report_approx": approximate,
+        "latest_report_age": age,
         "quotes": list(badge.get("evidence") or [])[:QUOTES_PER_ROW],
         "checked_at": checked_at,
         "checked_with_current": _current(product),
         "new": product["link"] not in seen,
         "case": (cases or {}).get(product["link"]),
+        "also": also_reported(view),
     }
 
 
@@ -434,8 +499,10 @@ def watch_list(
         for product, view, checked_at in reports.items
         if Reports.level(view) == level
     ]
-    # Newest report first; on the same day, the listing with more safety reports first.
-    rows.sort(key=lambda row: (str(row["checked_at"] or ""), row["safety_mentions"]), reverse=True)
+    # Newest complaint first (a listing with no dated safety review last); then the one with more safety reviews.
+    rows.sort(key=lambda row: (
+        row["latest_report_age"] is None, row["latest_report_age"] or 0, -row["safety_mentions"], row["name"].casefold()
+    ))
     return rows
 
 
@@ -473,15 +540,64 @@ def patterns(reports: Reports) -> list[dict[str, Any]]:
     return rows
 
 
+def _also_label(category: str) -> str:
+    from dashboard_utils import BADGE_COPY
+
+    return BADGE_COPY[category]["label"]
+
+
+def also_reported(view: dict[str, Any]) -> list[dict[str, Any]]:
+    """The other problems buyers report about a listing that the office looks into too, with how many reviews say so."""
+    counts = view.get("counts") or {}
+    return [
+        {"category": category, "label": _also_label(category), "reviews": int(counts.get(category) or 0)}
+        for category in ALSO
+        if int(counts.get(category) or 0) > 0
+    ]
+
+
+def _tidy_variant(text: Any) -> str:
+    """ "Model:65W" -> "Model: 65W"; spaces tidied; a bare "Variation:" or "Options:" in front, which says nothing,
+    left out ("Variation: 480w charger" -> "480w charger")."""
+    tidy = re.sub(r"\s*:\s*", ": ", " ".join(str(text or "").split())).strip(" :")
+    return re.sub(r"^(?:variations?|options?)\s*:\s*(?=[^:]+$)", "", tidy, flags=re.IGNORECASE)
+
+
+def variants_named(reviews: list[dict[str, Any]]) -> tuple[list[dict[str, Any]], int]:
+    """The product variants named in a listing's safety reviews, most first: which model to buy for a test.
+
+    Grouped with case ignored, written the way most reviews write it (on a tie, the one with capitals: "Model: 65W"
+    over "model: 65w"). Returns the first VARIANTS_SHOWN and how many others."""
+    counts: Counter = Counter()
+    spellings: dict[str, Counter] = {}
+    for review in reviews:
+        variant = _tidy_variant(review.get("variation"))
+        if not variant:
+            continue
+        key = variant.casefold()
+        spellings.setdefault(key, Counter())[variant] += 1
+        counts[key] += 1
+    spelling = {
+        key: max(found, key=lambda text: (found[text], sum(char.isupper() for char in text), text))
+        for key, found in spellings.items()
+    }
+    ranked = sorted(counts.items(), key=lambda item: (-item[1], spelling[item[0]].casefold()))
+    shown = [{"variant": spelling[key], "reviews": count} for key, count in ranked[:VARIANTS_SHOWN]]
+    return shown, max(0, len(ranked) - VARIANTS_SHOWN)
+
+
 def charts(reports: Reports) -> dict[str, Any]:
     """What the Overview charts draw: safety quotes per kind of hazard, safety reviews per year, listings per price
-    band. Counts only; the screens say what each one does and does not show."""
+    band, and what else buyers report about the flagged listings. Counts only; the screens say what each one does and
+    does not show."""
     hazards: Counter = Counter()
+    also = {category: {"category": category, "label": _also_label(category), "reports": 0, "mentions": 0} for category in ALSO}
+    flagged = 0
     years: Counter = Counter()
     undated = 0
     bands = {label: {"band": label, "listings": 0, "reports": 0, "mentions": 0} for _, label in PRICE_BANDS}
     no_price = 0
-    for product, view, _ in reports.items:
+    for product, view, checked_at in reports.items:
         level = Reports.level(view)
         price = _price_value(product.get("price"))
         if price is None:
@@ -493,12 +609,16 @@ def charts(reports: Reports) -> dict[str, Any]:
                 band[level] += 1
         if not level:
             continue
+        flagged += 1
+        for item in also_reported(view):
+            also[item["category"]][level] += 1
+        collected = collected_at(product, checked_at)
         for review, sentences in _safety_reviews(product):
             for sentence in sentences:
                 hazards[_hazard_label(sentence)] += 1
-            year = re.match(r"(\d{4})-\d{2}-\d{2}", str(review.get("time") or review.get("reviewed_at") or "").strip())
-            if year:
-                years[int(year.group(1))] += 1
+            day, _ = review_day(_review_text_date(review), collected)
+            if day:
+                years[day.year] += 1
             else:
                 undated += 1
     # Every year between the first and the last, so a quiet year shows as a gap, not as nothing.
@@ -509,6 +629,9 @@ def charts(reports: Reports) -> dict[str, Any]:
         "recent_or_unknown": undated,
         "prices": list(bands.values()),
         "no_price": no_price,
+        "also": sorted(
+            ({**row, "flagged": flagged} for row in also.values()), key=lambda row: -(row["reports"] + row["mentions"])
+        ),
     }
 
 
@@ -556,11 +679,13 @@ def watch_csv(rows: list[dict[str, Any]]) -> str:
         case = row.get("case") or {}
         writer.writerow([_cell(value) for value in (
             LEVEL_NAMES.get(row["level"], ""), row["name"], row["link"], row["seller"], row["kind"], row["price"],
-            row["safety_mentions"], row["reviews_analyzed"], row["ratings_listed"], row["summary"],
+            row["safety_mentions"],
+            f"{'about ' if row['latest_report_approx'] else ''}{row['latest_report']}" if row["latest_report"] else "",
+            row["reviews_analyzed"], row["ratings_listed"], row["summary"], "; ".join(item["label"] for item in row["also"]),
             str(row["checked_at"] or "")[:10], "no" if row["checked_with_current"] else "yes",
             STATUSES.get(case.get("status") or "", ""), case.get("note") or "",
         )])
-    return "﻿" + buffer.getvalue()
+    return "\ufeff" + buffer.getvalue()
 
 
 def evidence_sheet(
@@ -574,13 +699,18 @@ def evidence_sheet(
     agency account's own: its status and note, and the quotes it said are not safety problems.
     """
     reviews = []
+    collected = collected_at(product, checked_at)
     for review, sentences in _safety_reviews(product):
-        date = str(review.get("time") or review.get("reviewed_at") or "").strip()
+        written = _review_text_date(review)
+        day, approximate = review_day(written, collected)
         reviews.append({
             "rating": review.get("rating"),
-            "date": date or None,
+            "date": written or None,
             # "3 weeks ago" was true when the reviews were collected, not when the sheet is read.
-            "date_relative": bool(RELATIVE_DATE.match(date)),
+            "date_relative": bool(RELATIVE_DATE.match(written)),
+            # The day it stands for ("2026-10-01"); approximate when Lazada gave it as "3 weeks ago".
+            "day": day.isoformat() if day else None,
+            "day_approx": approximate,
             "variation": review.get("variation") or "",
             "text": str(review.get("content") or "").strip(),
             "quotes": [
@@ -593,9 +723,12 @@ def evidence_sheet(
                 for sentence in sentences
             ],
         })
-    reviews.sort(key=lambda item: _age_in_days(item["date"] or ""))
+    # Newest first; a review with no date last.
+    reviews.sort(key=lambda item: item["day"] or "", reverse=True)
+    reviews.sort(key=lambda item: item["day"] is None)
     summary = product.get("sentiment_summary") or {}
     badge = _safety_badge(view)
+    variants, variants_more = variants_named(reviews)
     return {
         "link": product["link"],
         "name": product.get("name") or "",
@@ -617,6 +750,9 @@ def evidence_sheet(
         "checked_with_current": _current(product),
         "checker_version": str(summary.get("model_version") or ""),
         "reviews": reviews,
+        "variants": variants,
+        "variants_more": variants_more,
+        "also": also_reported(view),
         "accuracy": view.get("safety_check_accuracy"),
         "note": LEADS_NOTE,
         "case": case,
@@ -699,10 +835,16 @@ def install(webapp: Any, app: Any = None) -> None:
         level = request.args.get("level") or "all"
         if level not in (*LEVELS, "all"):
             return jsonify({"error": "Choose reports, mentions or all."}), 400
+        # ?also=counterfeit keeps only the listings whose reviews also report that (the watch list's "Label" menu).
+        also = request.args.get("also") or ""
+        if also and also not in ALSO:
+            return jsonify({"error": "Choose one of the other problems."}), 400
         found = reports()
         seen = seen_links(database(), user["id"])
         cases = cases_of(database(), user["id"])
         rows = [row for wanted in (LEVELS if level == "all" else (level,)) for row in watch_list(found, wanted, seen, cases)]
+        if also:
+            rows = [row for row in rows if any(item["category"] == also for item in row["also"])]
         import accounts
 
         name = f"defaketive-dti-watch-list-{accounts.manila_day()}.csv"
@@ -794,6 +936,33 @@ def install(webapp: Any, app: Any = None) -> None:
             product, view, checked_at, cases_of(database(), user["id"]).get(link), marked_sentences(database(), user["id"], link)
         )
         return jsonify({"sheet": sheet})
+
+    @blueprint.post("/sheets")
+    def sheets() -> Any:
+        """Several evidence sheets at once, for a combined report, in the order asked. Printing a set is not reviewing
+        each listing, so nothing is marked as seen here."""
+        payload = webapp._json_body()
+        if payload is None:
+            return jsonify({"error": "Send this request as JSON."}), 415
+        user, refusal = member()
+        if refusal:
+            return refusal
+        links = payload.get("links")
+        if not isinstance(links, list) or not links:
+            return jsonify({"error": "Send the links of the listings to include."}), 400
+        if len(links) > MAX_REPORT_LISTINGS:
+            return jsonify({"error": f"A report can hold up to {MAX_REPORT_LISTINGS} listings. Narrow the filters."}), 400
+        found, cases, out, done = reports(), cases_of(database(), user["id"]), [], set()
+        for link in links:
+            item = found.find(str(link or ""))
+            if not item or item[0]["link"] in done:
+                continue
+            product, view, checked_at = item
+            done.add(product["link"])
+            out.append(evidence_sheet(
+                product, view, checked_at, cases.get(product["link"]), marked_sentences(database(), user["id"], product["link"])
+            ))
+        return jsonify({"sheets": out})
 
     @blueprint.post("/seen")
     def seen() -> Any:

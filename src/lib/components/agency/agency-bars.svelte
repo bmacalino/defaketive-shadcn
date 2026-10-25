@@ -12,7 +12,8 @@
 		series,
 		label,
 		end,
-		tip
+		tip,
+		onselect
 	}: {
 		rows: Row[];
 		series: readonly Series[];
@@ -22,6 +23,8 @@
 		end: (row: Row) => string;
 		/** The split, in words: the tooltip and what a screen reader hears for the row. */
 		tip: (row: Row) => string;
+		/** When given, each row's label is a button that opens that group (on the watch list). */
+		onselect?: (row: Row) => void;
 	} = $props();
 
 	const total = (row: Row) => series.reduce((sum, s) => sum + (row.values[s.key] ?? 0), 0);
@@ -31,7 +34,16 @@
 <ul class="space-y-3 sm:space-y-2" aria-label={label}>
 	{#each rows as row (row.label)}
 		<li class="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-1 text-sm sm:grid-cols-[minmax(0,9rem)_minmax(0,1fr)_auto]">
-			<span class="col-span-2 leading-snug sm:col-span-1">{row.label}</span>
+			{#if onselect}
+				<button
+					type="button"
+					class="tap col-span-2 w-fit text-left leading-snug underline decoration-dotted underline-offset-4 hover:decoration-solid sm:col-span-1"
+					aria-label="{row.label}: show on the watch list"
+					onclick={() => onselect(row)}>{row.label}</button
+				>
+			{:else}
+				<span class="col-span-2 leading-snug sm:col-span-1">{row.label}</span>
+			{/if}
 			<Tooltip.Root>
 				<Tooltip.Trigger>
 					{#snippet child({ props })}

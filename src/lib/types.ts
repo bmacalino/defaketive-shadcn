@@ -199,16 +199,36 @@ export interface AgencyRow {
 	reviews_analyzed: number;
 	quotes: Evidence[];
 	ratings_listed: number;
+	/** "Under ₱200" and so on (agency_api.PRICE_BANDS), or null with no price. */
+	price_band: string | null;
+	/** The day of the newest review the report counts as a safety report ("2026-10-14"). */
+	latest_report: string | null;
+	/** That day is counted back from when the reviews were collected (Lazada gave "3 weeks ago"). */
+	latest_report_approx: boolean;
+	/** How many days old that review is, for sorting; null when no safety review has a date. */
+	latest_report_age: number | null;
 	checked_at: string | null;
 	checked_with_current: boolean;
 	/** Not opened or marked as seen by this agency account yet. */
 	new: boolean;
 	/** This agency account's own status and note, or null when it gave neither. */
 	case: AgencyCase | null;
+	/** Other problems buyers report about it that the office looks into too ("Possible fake"...). */
+	also: AgencyAlso[];
 }
 
-/** Where a listing stands for one agency account. '' is "No status". */
-export type AgencyStatus = '' | 'looking' | 'referred' | 'no_action';
+/** agency_api.ALSO: misleading listings and copies. */
+export type AgencyAlsoCategory = 'not_as_described' | 'counterfeit';
+
+export interface AgencyAlso {
+	category: AgencyAlsoCategory;
+	/** The report's own label ("Not as advertised", "Possible fake"). */
+	label: string;
+	reviews: number;
+}
+
+/** Where a listing stands for one agency account: '' Not reviewed, 'looking' Under review, 'no_action' Closed, no action. */
+export type AgencyStatus = '' | 'looking' | 'no_action';
 
 export interface AgencyCase {
 	status: AgencyStatus;
@@ -223,6 +243,8 @@ export interface AgencyCharts {
 	recent_or_unknown: number;
 	prices: { band: string; listings: number; reports: number; mentions: number }[];
 	no_price: number;
+	/** Per other problem: how many flagged listings at each level have it, of all `flagged` listings. */
+	also: { category: AgencyAlsoCategory; label: string; reports: number; mentions: number; flagged: number }[];
 }
 
 export interface AgencySeller {
@@ -276,6 +298,9 @@ export interface AgencyReview {
 	date: string | null;
 	/** The date reads like "3 weeks ago": true when the reviews were collected, not now. */
 	date_relative: boolean;
+	/** The day it stands for ("2026-10-01"), or null; approximate when Lazada gave it as "3 weeks ago". */
+	day: string | null;
+	day_approx: boolean;
 	variation: string;
 	text: string;
 	quotes: AgencyQuote[];
@@ -302,6 +327,10 @@ export interface AgencySheet {
 	checked_with_current: boolean;
 	checker_version: string;
 	reviews: AgencyReview[];
+	/** The variants named in its safety reviews, most first (which model to buy for a test), and how many more. */
+	variants: { variant: string; reviews: number }[];
+	variants_more: number;
+	also: AgencyAlso[];
 	accuracy: SafetyCheckAccuracy | null;
 	note: string;
 	case: AgencyCase | null;
