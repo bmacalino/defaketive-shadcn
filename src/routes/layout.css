@@ -438,8 +438,7 @@
 	}
 }
 
-/* Printing (the agency's evidence sheet): the page itself only, never the menu, the top bar or the footer.
-   The sheet takes the dark theme off while it prints, so the words are dark on white paper. */
+/* Printing a page: the page itself only, never the menu, the top bar or the footer. */
 @media print {
 	[data-print='hide'],
 	[data-slot='sidebar-gap'],
@@ -454,14 +453,5 @@
 		animation: none !important;
 		opacity: 1 !important;
 		transform: none !important;
-	}
-	[data-print='keep'] {
-		break-inside: avoid;
-	}
-	/* A combined report: each listing's sheet starts a new page, without the line drawn between them on screen. */
-	[data-print='page'] {
-		break-before: page;
-		border-top: 0 !important;
-		padding-top: 0 !important;
 	}
 }

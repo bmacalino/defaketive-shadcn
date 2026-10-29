@@ -4,15 +4,6 @@ export const reportHref = (link: string) => `/app/report?link=${encodeURICompone
 /** The same report on the guest screen: no menu, no account features, just the report. */
 export const guestReportHref = (link: string) => `/scan/report?link=${encodeURIComponent(link)}`;
 
-/**
- * A report opened from the agency view. An officer reading reports at work is not shopping, so the report page does
- * not add these to the account's own History ("Products checked" on Home). The address says so, so a reload keeps it.
- */
-export const agencyReportHref = (link: string) => `${reportHref(link)}&from=agency`;
-
-/** A listing's evidence sheet in the agency view (only an agency's account can open it). */
-export const evidenceHref = (link: string) => `/app/agency/evidence?link=${encodeURIComponent(link)}`;
-
 /** The right one of the two for whoever is looking. */
 export const reportHrefFor = (link: string, guest: boolean) => (guest ? guestReportHref(link) : reportHref(link));
 

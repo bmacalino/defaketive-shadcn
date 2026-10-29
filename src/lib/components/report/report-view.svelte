@@ -47,7 +47,6 @@
 		type EvidenceFilter
 	} from '#lib/product.js';
 	import { page } from '$app/state';
-	import { agency } from '#lib/stores/agency.svelte.js';
 	import { auth } from '#lib/stores/auth.svelte.js';
 	import { library } from '#lib/stores/library.svelte.js';
 	import { scan } from '#lib/stores/scan.svelte.js';
@@ -106,8 +105,7 @@
 				product = data.product;
 				recommendations = data.recommendations ?? [];
 				loading = false;
-				// Opened from the agency view (nav.agencyReportHref): work, not shopping, so not added to History.
-				if (page.url.searchParams.get('from') !== 'agency') library.remember(data.product);
+				library.remember(data.product);
 				// The report of the scan just finished is open: the header stops pointing at it.
 				scan.markSeen(data.product.link);
 			})
@@ -264,15 +262,13 @@
 			/* show the notice */
 		}
 	});
-	// The button above the report goes back to the page it was opened from (the DTI view, Products, History...).
+	// The button above the report goes back to the page it was opened from (Products, History...).
 	// Opened with no page before it in the app (a shared link, a new tab), it offers to check another product.
 	const CAME_FROM: Record<string, string> = {
 		'/app/home': 'Back to Home',
 		'/app/products': 'Back to Products',
 		'/app/history': 'Back to History',
 		'/app/wishlist': 'Back to Wishlist',
-		'/app/agency': `Back to ${agency.title}`,
-		'/app/agency/evidence': 'Back to the evidence sheet',
 		'/app/report': 'Back to the previous report',
 		'/scan/report': 'Back to the previous report'
 	};

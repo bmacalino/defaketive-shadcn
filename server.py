@@ -14,8 +14,8 @@ another person scanned) cannot be opened. The routes below add that, reading the
     GET /api/saved/popular           products saved by two or more accounts, with how many saved them
 
 It also puts in place what protects the app once the public can reach it (protections.py), the route the
-browser extension sends collected reviews to (extension_api.py, POST /api/extension/check), and the agency view
-for a partner government office (agency_api.py, /api/agency/*).
+browser extension sends collected reviews to (extension_api.py, POST /api/extension/check), and the admin app's
+routes for the DTI staff who run the site (admin_api.py, /api/admin/*: accounts and daily limits).
 
 Who sees what: these routes serve the SHARED pool (the products table), which is what recommendations are picked
 from. A person's own history and wishlist stay in their account (user_activity, user_wishlist) and are only ever
@@ -62,7 +62,7 @@ from dashboard_utils import analysis_is_current, merge_product_catalogs, rank_re
 from data_store import DEFAULT_DB  # noqa: E402
 from flask import Blueprint, jsonify, request  # noqa: E402
 
-import agency_api  # noqa: E402  (beside this file)
+import admin_api  # noqa: E402  (beside this file)
 import extension_api  # noqa: E402  (beside this file)
 import protections  # noqa: E402  (beside this file)
 from saved_pool import SavedPool  # noqa: E402  (beside this file)
@@ -204,15 +204,9 @@ def _saved_report(link: str) -> dict[str, str] | None:
 extension_api.saved_report = _saved_report
 
 
-def _saved_reports() -> tuple[list[dict[str, Any]], dict[str, str]]:
-    """Every saved product and when each one's report was last written, for the agency view."""
-    return pool.snapshot()
-
-
-# The saved reports arranged for a partner government office, open only to accounts the team marked as one
-# (agency_api.py, scripts/agency_accounts.py).
-agency_api.install(webapp)
-agency_api.saved_reports = _saved_reports
+# The admin app's accounts and daily limits, open only to admin accounts (admin_api.py, scripts/admin_accounts.py).
+# After protections.install, so the limits an admin saved replace the environment's.
+admin_api.install(webapp)
 
 if __name__ == "__main__":
     # Flask's debug mode shows a developer's error page in the browser. That is for changing the code (dev.cmd

@@ -2,7 +2,6 @@
 	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
 	import SearchIcon from '@lucide/svelte/icons/search';
-	import AgencyGuide from '#lib/components/agency/agency-guide.svelte';
 	import AppSidebar from '#lib/components/app/app-sidebar.svelte';
 	import ScanPill from '#lib/components/app/scan-pill.svelte';
 	import ThemeToggle from '#lib/components/app/theme-toggle.svelte';
@@ -21,7 +20,6 @@
 	import * as Sidebar from '#lib/components/ui/sidebar/index.js';
 	import { Spinner } from '#lib/components/ui/spinner/index.js';
 	import { guestDestination } from '#lib/nav.js';
-	import { agency } from '#lib/stores/agency.svelte.js';
 	import { auth } from '#lib/stores/auth.svelte.js';
 	import { ui } from '#lib/stores/ui.svelte.js';
 	import type { LayoutProps } from './$types';
@@ -42,17 +40,6 @@
 		});
 	});
 
-	// Whether this account may open the agency view: asked again whenever the account changes.
-	$effect(() => {
-		agency.follow(auth.user?.email);
-	});
-	// A partner agency's account is made by the team, so it never sees the sign-up tour: its own "Get started" guide
-	// opens by itself until the account closes it once (the server remembers), never over another pop-up.
-	$effect(() => {
-		if (agency.member && !agency.guideSeen && !agency.guideOpen && !ui.authOpen && !ui.tourOpen && !ui.leaving) {
-			agency.guideOpen = true;
-		}
-	});
 
 	const titles: Record<string, string> = {
 		home: 'Home',
@@ -67,8 +54,7 @@
 		extension: 'Get the extension'
 	};
 	const current = $derived.by(() => {
-		const [, , section = '', sub = ''] = page.url.pathname.split('/');
-		if (section === 'agency') return sub === 'evidence' ? 'Evidence sheet' : sub === 'report' ? 'Printable report' : agency.title;
+		const [, , section = ''] = page.url.pathname.split('/');
 		return titles[section] ?? 'DeFaketive';
 	});
 
@@ -117,5 +103,4 @@
 		<div data-print="hide"><SiteFooter compact /></div>
 	</Sidebar.Inset>
 </Sidebar.Provider>
-{#if agency.member}<AgencyGuide />{/if}
 {/if}

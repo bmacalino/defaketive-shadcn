@@ -6,7 +6,7 @@ public, these were measured on 15 Oct 2026 on a copy of the real database:
 1. Closed routes. Older routes that the new screens never call answered anyone without signing in:
    /api/upload added any product to the shared database (and so to everyone's "Similar products"),
    /api/evaluation ran the review model over an uploaded file of up to 10 MB, /api/survey stored anything sent
-   to it, and /api/admin/* and /api/export/* gave out the scan logs, the word lists and review text. They now
+   to it, and /api/admin/overview|database|lexicons|logs and /api/export/* gave out the scan logs, the word lists and review text. They now
    answer 404. DEFAKETIVE_OLD_ROUTES=1 opens them again (the original's own page on port 5000 uses them).
 
 2. Daily limits that hold. A guest's 3 free scans were counted per browser cookie, so clearing cookies gave 3
@@ -49,8 +49,12 @@ from typing import Any
 
 from flask import Flask, Response, current_app, g, jsonify, request
 
-CLOSED_PATHS = frozenset({"/api/upload", "/api/evaluation", "/api/survey"})
-CLOSED_PREFIXES = ("/api/admin/", "/api/export/")
+# The original's admin routes by name: /api/admin/ itself now holds the admin app's own routes (admin_api.py).
+CLOSED_PATHS = frozenset({
+    "/api/upload", "/api/evaluation", "/api/survey",
+    "/api/admin/overview", "/api/admin/database", "/api/admin/lexicons", "/api/admin/logs",
+})
+CLOSED_PREFIXES = ("/api/export/",)
 # Requests that start a new check, and so count against the daily limits: a live scan, and reviews an extension
 # collected (extension_api.py). /api/search only counts when it asks for a live scan.
 COUNTED_PATHS = frozenset({"/api/search", "/api/extension/check"})
@@ -93,7 +97,8 @@ def _setting(name: str, default: int) -> int:
 
 
 class Limits:
-    """The numbers, read when the app starts. Tests change them on the object."""
+    """The numbers, read when the app starts. The admin app changes site, account and network on the object
+    (admin_api.py keeps them), and so do tests."""
 
     def __init__(self) -> None:
         self.site = _setting("DEFAKETIVE_SITE_DAILY_SCANS", 100)

@@ -13,7 +13,6 @@
 	import PuzzleIcon from '@lucide/svelte/icons/puzzle';
 	import ScanSearchIcon from '@lucide/svelte/icons/scan-search';
 	import SettingsIcon from '@lucide/svelte/icons/settings';
-	import ShieldCheckIcon from '@lucide/svelte/icons/shield-check';
 	import type { Component } from 'svelte';
 	import { Avatar, AvatarFallback } from '#lib/components/ui/avatar/index.js';
 	import {
@@ -26,7 +25,6 @@
 	} from '#lib/components/ui/dropdown-menu/index.js';
 	import * as Sidebar from '#lib/components/ui/sidebar/index.js';
 	import { initials } from '#lib/product.js';
-	import { agency } from '#lib/stores/agency.svelte.js';
 	import { auth } from '#lib/stores/auth.svelte.js';
 	import { signOut } from '#lib/session.js';
 	import { ui } from '#lib/stores/ui.svelte.js';
@@ -88,30 +86,6 @@
 	</Sidebar.Header>
 
 	<Sidebar.Content>
-		{#if agency.member}
-			<!-- Only for accounts the team gave access to (scripts/agency_accounts.py); the server checks it again. -->
-			<Sidebar.Group>
-				<Sidebar.GroupLabel>Partner agency</Sidebar.GroupLabel>
-				<Sidebar.GroupContent>
-					<Sidebar.Menu>
-						<Sidebar.MenuItem>
-							<Sidebar.MenuButton isActive={page.url.pathname.startsWith('/app/agency')} tooltipContent={agency.title}>
-								{#snippet child({ props })}
-									<a href="/app/agency" {...props} onclick={() => sidebar.isMobile && sidebar.setOpenMobile(false)}>
-										<ShieldCheckIcon />
-										<span>{agency.title}</span>
-										{#if agency.newCount.reports}<span class="sr-only">, {agency.newCount.reports} new</span>{/if}
-									</a>
-								{/snippet}
-							</Sidebar.MenuButton>
-							{#if agency.newCount.reports}
-								<Sidebar.MenuBadge aria-hidden="true">{agency.newCount.reports}</Sidebar.MenuBadge>
-							{/if}
-						</Sidebar.MenuItem>
-					</Sidebar.Menu>
-				</Sidebar.GroupContent>
-			</Sidebar.Group>
-		{/if}
 		{@render group('Main', check)}
 		{@render group('Your library', mine)}
 		{@render group('Learn', learn)}

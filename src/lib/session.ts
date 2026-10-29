@@ -1,6 +1,5 @@
 import { goto } from '$app/navigation';
 import { toast } from 'svelte-sonner';
-import { agency } from '#lib/stores/agency.svelte.js';
 import { auth } from '#lib/stores/auth.svelte.js';
 import { catalog } from '#lib/stores/catalog.svelte.js';
 import { library } from '#lib/stores/library.svelte.js';
@@ -10,10 +9,9 @@ import { ui } from '#lib/stores/ui.svelte.js';
 /**
  * Clear everything on screen that belonged to the account that just left, so the next person on this
  * browser (a guest or another account) starts with nothing of theirs: history, wishlist, the last-scan card,
- * any search results and the agency menu.
+ * and any search results.
  */
 export function forgetAccount() {
-	agency.forget();
 	library.forget();
 	scan.reset();
 	catalog.results = [];

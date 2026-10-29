@@ -14,7 +14,6 @@
 	import PuzzleIcon from '@lucide/svelte/icons/puzzle';
 	import ScanSearchIcon from '@lucide/svelte/icons/scan-search';
 	import SettingsIcon from '@lucide/svelte/icons/settings';
-	import ShieldCheckIcon from '@lucide/svelte/icons/shield-check';
 	import UserPlusIcon from '@lucide/svelte/icons/user-plus';
 	import type { Component } from 'svelte';
 	import { toggleMode } from 'mode-watcher';
@@ -31,7 +30,6 @@
 	import { reportHref } from '#lib/nav.js';
 	import { signOut } from '#lib/session.js';
 	import { chipFor, linkIdentity, platformName, view } from '#lib/product.js';
-	import { agency } from '#lib/stores/agency.svelte.js';
 	import { auth } from '#lib/stores/auth.svelte.js';
 	import { catalog } from '#lib/stores/catalog.svelte.js';
 	import { library } from '#lib/stores/library.svelte.js';
@@ -58,14 +56,7 @@
 		{ href: '/app/about', label: 'About', icon: InfoIcon, words: 'team project' },
 		{ href: '/app/faq', label: 'FAQ', icon: CircleHelpIcon, words: 'questions help verdicts results' }
 	];
-	// The agency view only for an agency's account (the server decides; this only lists it).
-	const agencyPage = $derived<Page>({
-		href: '/app/agency',
-		label: agency.title,
-		icon: ShieldCheckIcon,
-		words: 'agency dti government watch list safety evidence sheet'
-	});
-	const pages = $derived(auth.user ? (agency.member ? [agencyPage, ...appPages] : appPages) : guestPages);
+	const pages = $derived(auth.user ? appPages : guestPages);
 
 	// Your own products first, then everything else that was analyzed. One entry per listing. All of them: a cut-off
 	// (it was 80) hid products further down the list from the search (found 20 Oct 2026, with 186 saved products).
@@ -109,9 +100,6 @@
 		<CommandGroup heading="Actions">
 			<CommandItem value="toggle dark light theme mode" onSelect={() => run(toggleMode)}><MoonIcon /> Switch light or dark theme</CommandItem>
 			{#if auth.user}
-				{#if agency.member}
-					<CommandItem value="dti agency guide get started help" onSelect={() => run(() => (agency.guideOpen = true))}><ShieldCheckIcon /> Show the {agency.office || 'agency'} guide</CommandItem>
-				{/if}
 				<CommandItem value="welcome tour guide help get started" onSelect={() => run(() => (ui.tourOpen = true))}><CompassIcon /> Show the welcome tour</CommandItem>
 				<CommandItem value="sign out log out" onSelect={() => run(signOut)}><LogOutIcon /> Sign out</CommandItem>
 			{:else}

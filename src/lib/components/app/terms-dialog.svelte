@@ -63,9 +63,9 @@
 				Reports quote public Lazada reviews. We don't show or share the reviewers' names.
 			</p>
 			<p class="text-muted-foreground">
-				A partner government office, the Department of Trade and Industry (DTI), may be given a view of the saved reports
-				to look into safety problems. It sees the same reports anyone can open, without reviewers' names, and nothing
-				about your account.
+				DeFaketive is run with the Department of Trade and Industry (DTI). Its admins can see each account's name, email,
+				when it was made and how many products are in its History and Wishlist, to manage accounts and the daily limits.
+				They never see your password or which products you checked or saved.
 			</p>
 			<p class="text-muted-foreground">
 				We use this information to run DeFaketive and, only as overall numbers, for our study. We don't sell or share it. We

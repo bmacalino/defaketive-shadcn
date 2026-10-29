@@ -1,7 +1,6 @@
 <script lang="ts">
 	import { page } from '$app/state';
 	import CompassIcon from '@lucide/svelte/icons/compass';
-	import ShieldCheckIcon from '@lucide/svelte/icons/shield-check';
 	import { mode, setMode } from 'mode-watcher';
 	import AccountDialogs from '#lib/components/app/account-dialogs.svelte';
 	import { Avatar, AvatarFallback } from '#lib/components/ui/avatar/index.js';
@@ -11,12 +10,11 @@
 	import { Separator } from '#lib/components/ui/separator/index.js';
 	import { Switch } from '#lib/components/ui/switch/index.js';
 	import { initials } from '#lib/product.js';
-	import { agency } from '#lib/stores/agency.svelte.js';
 	import { auth } from '#lib/stores/auth.svelte.js';
 	import { prefs } from '#lib/stores/prefs.svelte.js';
 	import { ui } from '#lib/stores/ui.svelte.js';
 
-	// ?edit=1 opens the Edit account pop-up straight away (the agency guide's "Change my password" links here).
+	// ?edit=1 opens the Edit account pop-up straight away (a link that says "change your password" can point here).
 	let dialog = $state<'' | 'edit' | 'clear' | 'delete'>(page.url.searchParams.get('edit') === '1' ? 'edit' : '');
 </script>
 
@@ -95,13 +93,10 @@
 		<CardHeader>
 			<CardTitle id="settings-help">Getting started</CardTitle>
 			<CardDescription>
-				{agency.member ? `The short guides to DeFaketive and to the ${agency.title}.` : 'The short guide shown when you created your account.'}
+				The short guide shown when you created your account.
 			</CardDescription>
 		</CardHeader>
 		<CardContent class="flex-row flex-wrap gap-2">
-			{#if agency.member}
-				<Button variant="outline" onclick={() => (agency.guideOpen = true)}><ShieldCheckIcon /> Show the {agency.office || 'agency'} guide</Button>
-			{/if}
 			<Button variant="outline" onclick={() => (ui.tourOpen = true)}><CompassIcon /> Show the welcome tour</Button>
 		</CardContent>
 	</Card>
